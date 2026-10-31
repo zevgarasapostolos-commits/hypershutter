@@ -1,0 +1,27 @@
+/* HyperShutter design tokens. Gold is ~2.8:1 on white: hairlines, icons,
+   focus rings and large display only, never body text or button labels. */
+:root {
+  --hs-white: #FFFFFF;
+  --hs-gold: #A59769;
+  --hs-slate: #405366;
+
+  --hs-surface: #FAF8F3;        /* warm off-white panels */
+  --hs-ink: #2A3744;            /* deep slate for body text */
+  --hs-ink-muted: #5E6E7E;
+  --hs-hairline: rgba(165, 151, 105, 0.45);
+  --hs-focus: var(--hs-gold);
+
+  --hs-font-text: -apple-system, BlinkMacSystemFont, "SF Pro Text", "SF Pro Display", system-ui, sans-serif;
+  --hs-font-display: ui-serif, "New York", Georgia, serif;
+  --hs-label-tracking: 0.12em;
+
+  --hs-radius: 8px;
+  --hs-space-1: 4px;
+  --hs-space-2: 8px;
+  --hs-space-3: 16px;
+  --hs-space-4: 24px;
+  --hs-space-5: 40px;
+
+  --hs-ease: cubic-bezier(0.2, 0, 0, 1);
+  --hs-dur: 240ms;
+}

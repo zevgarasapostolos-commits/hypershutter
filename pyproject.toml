@@ -1,0 +1,18 @@
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "hypershutter"
+version = "0.0.1"
+description = "Organizes wedding / baptism / event footage into the videographer's own category structure."
+requires-python = ">=3.12"
+
+[project.scripts]
+hypershutter = "hypershutter.cli:main"
+
+[tool.setuptools.packages.find]
+include = ["hypershutter*"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]

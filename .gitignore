@@ -1,0 +1,39 @@
+# Python
+.venv/
+__pycache__/
+*.pyc
+*.egg-info/
+.pytest_cache/
+build/
+dist/
+*.app
+
+# Secrets
+.env
+*.key
+
+# Media, frames, caches (never commit footage or derived frames)
+*.MP4
+*.mp4
+*.MOV
+*.mov
+*.WAV
+*.wav
+*.mp3
+*.LRF
+*.SRT
+frames/
+cache/
+*.sqlite
+*.db
+
+# Reports may contain client names; commit only scrubbed ones explicitly
+reports/*
+!reports/.gitkeep
+
+# Local reference material from old sessions (contains client paths)
+reference/
+
+# macOS
+.DS_Store
+._*

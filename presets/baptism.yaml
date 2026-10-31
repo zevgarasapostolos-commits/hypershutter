@@ -1,0 +1,75 @@
+# Baptism (βάφτιση) — HINTS ONLY, never a fixed list.
+# Each event gets its own structure built from what is actually in the footage.
+# Labels are Greek; folder names on disk are produced by core.greeklish.
+# Source: docs/workflow-organizing.md + the user's organized baptisms (067–073).
+
+event_type: baptism
+
+naming:
+  number_format: "{n:02d}"        # chronological order of the day
+  sub_letter: "a"                  # 08 / 08a when a part is split
+  flow_suffix: "ΡΟΗ"               # -> ROI
+  broll_suffix: "B-ROLL"
+  separator: " — "                 # -> " - " on disk
+  unusable: { number: 99, label: "ΑΧΡΗΣΤΑ" }   # only if there are any
+  contact_sheets_dir: "00 CONTACT SHEETS"
+  index_label: "ΕΥΡΕΤΗΡΙΟ ΠΛΑΝΩΝ"  # -> "00 EVRETIRIO PLANON.md" (pending user confirmation)
+  greeklish_style:                 # pending user confirmation, see core/greeklish.py
+    upsilon: "Y"
+    au_eu: "phonetic"
+    xi: "KS"
+    mp_nt: "literal"
+
+# Typical parts in typical order. Use only those present; merge, split, rename freely.
+typical_parts:
+  - label: "ΕΞΩΤΕΡΙΚΑ ΕΚΚΛΗΣΙΑΣ"
+    cues: "church facade, bell tower, entrance, flag; may include surrounding nature (then '& ΦΥΣΗ')"
+  - label: "DRONE"
+    cues: "all DJI clips together in one folder, numbered where the first drone clip falls in the day"
+  - label: "ΣΤΟΛΙΣΜΟΣ & CANDY BAR"
+    cues: "decor, candy bar, backdrop, name sign, sweets; decor without people is ΣΤΟΛΙΣΜΟΣ even if shot between portraits; the decor theme may go in the name (e.g. «ΑΡΤΟΠΟΙΕΙΟΝ»)"
+  - label: "ΕΣΩΤΕΡΙΚΟ ΕΚΚΛΗΣΙΑΣ"
+    cues: "empty church interior: font with flowers, iconostasis, chandelier, dome, candles"
+  - label: "ΛΕΠΤΟΜΕΡΕΙΕΣ (ΡΟΥΧΑ, ΛΑΜΠΑΔΑ, ΛΑΔΟΠΑΝΟ)"
+    cues: "baby clothes, shoes, candle, oil cloths, oil bottles, cross, suitcase; separate from the empty interior. Name lists what is actually there"
+  - label: "ΠΟΡΤΡΕΤΑ ΟΙΚΟΓΕΝΕΙΑΣ (ΠΡΙΝ)"
+    cues: "POSED shots before the ceremony: parents, godparents, grandparents, groups on the steps, baby alone"
+  - label: "ΑΦΙΞΗ ΚΑΛΕΣΜΕΝΩΝ"
+    cues: "ONLY candid: guests arriving, greetings, chatting, kids playing; if people talk to each other and do not look at the lens it is arrival, not portrait"
+  - label: "ΚΑΤΗΧΗΣΗ"
+    split: true
+    cues: "catechism, usually outside / porch / narthex, priest reads over the baby, godparent recites the Creed"
+  - label: "ΜΥΣΤΗΡΙΟ"
+    split: true
+    cues: "starts when the priest in vestments is at the font; oil, undressing, immersion, chrism, dressing in white, circle, Gospel, dismissal"
+  - label: "ΚΕΡΑΣΜΑ"
+    cues: "treats outside the church after the ceremony; a long take of guests congratulating inside the church goes here as «ΕΥΧΕΣ & ΚΕΡΑΣΜΑ» (tell the user it can move to the flow); one long continuous κέρασμα take may become «ΚΕΡΑΣΜΑ — ΡΟΗ»"
+  - label: "ΔΕΞΙΩΣΗ — ΧΩΡΟΣ & ΤΡΑΠΕΖΙΑ"
+    cues: "reception venue, set tables, food; split into ΧΩΡΟΣ / ΚΟΣΜΟΣ & ΦΑΓΗΤΟ if there is a lot"
+  - label: "ΠΟΡΤΡΕΤΑ ΜΕΤΑ ΤΗ ΒΑΦΤΙΣΗ"
+    cues: "posed shots after the ceremony; name by what happens: ΦΩΤΟΓΡΑΦΗΣΗ ΓΟΝΕΩΝ, ΦΩΤΟΓΡΑΦΗΣΗ ΣΤΟΝ ΚΗΠΟ …"
+  - label: "ΠΑΙΔΙΑ"
+    cues: "kids' activities at the reception, e.g. «ΠΑΙΔΙΑ — FACE PAINTING»"
+  - label: "ΜΟΥΣΙΚΟΙ"
+    cues: "live musicians"
+  - label: "ΧΟΡΟΣ"
+    cues: "dancing; often few but very long clips (10–15 min each), sometimes 1080p25"
+
+rules:
+  - "Decide part boundaries on the corrected timeline first, then check clip by clip inside each block: categories interleave in time."
+  - "Everything shot INSIDE the catechism / mystery time window belongs to that ceremony part; everything before belongs to arrival or portraits."
+  - "Posed -> ΠΟΡΤΡΕΤΑ. Candid -> ΑΦΙΞΗ. A candid family moment inside the crowd is arrival."
+  - "ΚΑΤΗΧΗΣΗ and ΜΥΣΤΗΡΙΟ are always split into 4 folders: ΡΟΗ and B-ROLL for each."
+  - "ΡΟΗ = the few long continuous main-camera takes (>= ~45–60 s) that cover the ceremony start to end; typically 2–3 for catechism, 3–4 for mystery. Their end+start should chain."
+  - "ΡΟΗ masters never go in B-ROLL. B-ROLL = every other clip shot inside the same ceremony window, from both cameras (faces, reactions, close-ups of book/oil/hands/font, kids with candles, dressing)."
+  - "The second camera goes to the B-ROLL of the part it falls in by corrected time; if it falls in the gap between parts, decide by content."
+  - "Drone clips get their own folder."
+  - "99 ΑΧΡΗΣΤΑ only for truly unusable clips (1 s of floor, white sky) after checking several frames."
+  - "Material from another day (e.g. a baby studio shoot) gets its own folder with the date in the name."
+  - "Never decide from file name, time, or a single frame. The first 3–6 s of most clips show the floor (operator presses REC while walking)."
+
+clocks:
+  - "Main camera clock has been wrong in every event: usually +14:00 vs its raw creation_time (seen +12:57, +14:02, +14:15). Never assume; compute every time."
+  - "Second camera (C6xxx) and DJI write UTC in creation_time -> +3 h in Greek summer time (+2 h in winter). DJI file names already hold local time."
+  - "Best offset source: the same moment on two cameras (catechism start, immersion), then confirm with 2–3 independent B-clips that fall inside A-masters showing the same scene. Drone alone is not accurate enough (once gave +13:44 instead of +14:00)."
+  - "Audio recorders (DJI_0N_YYYYMMDD_hhmmss.WAV): file name holds local start time."

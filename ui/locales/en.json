@@ -1,0 +1,12 @@
+{
+  "app.name": "HyperShutter",
+  "nav.home": "Projects",
+  "nav.analyze": "Scan & Analyze",
+  "nav.review": "Review",
+  "nav.edit": "Edit prep",
+  "nav.lab": "Accuracy Lab",
+  "nav.settings": "Settings",
+  "nav.features": "Features",
+  "nav.help": "Help & Support",
+  "nav.about": "About"
+}

@@ -1,0 +1,1 @@
+"""pywebview shell (M4)."""

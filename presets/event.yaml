@@ -1,0 +1,30 @@
+# Generic event — HINTS ONLY. Used when the event is neither a wedding nor a baptism.
+
+event_type: event
+
+naming:
+  number_format: "{n:02d}"
+  sub_letter: "a"
+  flow_suffix: "ΡΟΗ"
+  broll_suffix: "B-ROLL"
+  separator: " — "
+  unusable: { number: 99, label: "ΑΧΡΗΣΤΑ" }
+  contact_sheets_dir: "00 CONTACT SHEETS"
+  index_label: "ΕΥΡΕΤΗΡΙΟ ΠΛΑΝΩΝ"
+  greeklish_style: { upsilon: "Y", au_eu: "phonetic", xi: "KS", mp_nt: "literal" }
+
+typical_parts:
+  - label: "ΤΟΠΟΘΕΣΙΑ & ΕΞΩΤΕΡΙΚΑ"
+  - label: "ΣΤΟΛΙΣΜΟΣ & ΛΕΠΤΟΜΕΡΕΙΕΣ"
+  - label: "ΑΦΙΞΗ ΚΑΛΕΣΜΕΝΩΝ"
+  - label: "ΚΥΡΙΟ ΓΕΓΟΝΟΣ"
+    split: true
+    cues: "the main moment (speech, ceremony, show); long continuous takes -> ΡΟΗ, cutaways -> B-ROLL"
+  - label: "ΠΟΡΤΡΕΤΑ"
+  - label: "ΦΑΓΗΤΟ & ΚΟΣΜΟΣ"
+  - label: "ΧΟΡΟΣ"
+  - label: "DRONE"
+
+rules:
+  - "Chronological numbering; names describe what is in each part of this specific event."
+  - "Long continuous takes of the main moment -> ΡΟΗ; short cutaways in the same time window -> B-ROLL."

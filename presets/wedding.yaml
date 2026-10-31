@@ -1,0 +1,51 @@
+# Wedding (γάμος) — HINTS ONLY, never a fixed list. Same principles as baptisms.
+# The user will give detailed wedding instructions at M6.
+
+event_type: wedding
+
+naming:
+  number_format: "{n:02d}"
+  sub_letter: "a"
+  flow_suffix: "ΡΟΗ"
+  broll_suffix: "B-ROLL"
+  separator: " — "
+  unusable: { number: 99, label: "ΑΧΡΗΣΤΑ" }
+  contact_sheets_dir: "00 CONTACT SHEETS"
+  index_label: "ΕΥΡΕΤΗΡΙΟ ΠΛΑΝΩΝ"
+  greeklish_style: { upsilon: "Y", au_eu: "phonetic", xi: "KS", mp_nt: "literal" }
+
+typical_parts:
+  - label: "ΧΩΡΙΟ & ΤΟΠΟΘΕΣΙΑ"
+    cues: "village / town / landscape establishing shots (castle, sea, ships)"
+  - label: "ΛΕΠΤΟΜΕΡΕΙΕΣ (ΔΑΧΤΥΛΙΔΙΑ, ΠΑΠΟΥΤΣΙΑ)"
+    cues: "rings, shoes, dress on hanger, perfume, invitation; may be ΛΕΠΤΟΜΕΡΕΙΕΣ ΓΑΜΠΡΟΥ / ΝΥΦΗΣ"
+  - label: "ΕΤΟΙΜΑΣΙΑ ΓΑΜΠΡΟΥ"
+    cues: "groom getting ready, shaving, friends, family at the groom's house"
+  - label: "ΕΤΟΙΜΑΣΙΑ ΝΥΦΗΣ"
+    cues: "bride getting ready, make-up, dress, bridesmaids"
+  - label: "ΝΥΦΗ ΜΙΛΑΕΙ ΣΤΗΝ ΚΑΜΕΡΑ"
+    cues: "only when asked: bride looks straight into the lens and talks"
+  - label: "ΚΕΡΑΣΜΑ ΠΡΙΝ ΤΗΝ ΕΚΚΛΗΣΙΑ"
+  - label: "ΕΚΚΛΗΣΙΑ & ΑΦΙΞΗ ΚΟΣΜΟΥ"
+    cues: "church exterior, guests arriving, groom waiting, bride's arrival"
+  - label: "ΓΑΜΟΣ"
+    split: true
+    cues: "ceremony: rings (αρραβώνας), crowns (στέφανα), Apostle, Gospel, common cup (κοινό ποτήριο), «Ησαΐα χόρευε», dismissal"
+  - label: "ΓΑΜΟΣ — ΕΞΟΔΟΣ & ΕΥΧΕΣ"
+    cues: "leaving the church, rice, wishes at the door"
+  - label: "ΦΩΤΟΓΡΑΦΗΣΗ ΖΕΥΓΑΡΙΟΥ"
+    cues: "couple photo session; add the theme if clear, e.g. (ΒΕΣΠΑ)"
+  - label: "ΑΦΙΞΗ ΖΕΥΓΑΡΙΟΥ ΣΤΗ ΔΕΞΙΩΣΗ"
+  - label: "ΔΕΞΙΩΣΗ — ΣΤΟΛΙΣΜΟΣ"
+  - label: "ΔΕΞΙΩΣΗ — ΚΟΣΜΟΣ & ΦΑΓΗΤΟ"
+  - label: "ΠΡΩΤΟΣ ΧΟΡΟΣ"
+  - label: "ΧΟΡΟΣ"
+  - label: "ΕΥΧΕΣ - ΣΥΝΕΝΤΕΥΞΕΙΣ"
+    cues: "guests talking to camera / interviews"
+  - label: "DRONE"
+
+rules:
+  - "Same rules as baptism.yaml: timeline first, then clip by clip; ceremony time window decides membership; posed vs candid; ΡΟΗ masters never in B-ROLL."
+  - "An event can be a wedding AND a baptism on the same day: then build both ceremony sets (ΓΑΜΟΣ ΡΟΗ/B-ROLL and ΒΑΦΤΙΣΗ ΡΟΗ/B-ROLL)."
+  - "A folder named CLIP2 is not necessarily a second camera: if numbering continues without a gap and codec/resolution match, it is the same camera on another card or day."
+  - "With a single camera there may be no B-ROLL for the ceremony at all; say so explicitly."
