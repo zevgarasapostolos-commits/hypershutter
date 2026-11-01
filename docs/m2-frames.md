@@ -53,7 +53,7 @@ The app shows the same estimate and asks for confirmation before any API call.
 
 267 clips, 2:36:00 of footage → **5,835 frames** (4,559 at 1 per 2 s + 1,276 at scene changes),
 **434 contact sheets**. Frames took 357 s (≈ 26× real time over USB), sheets 20 s; a second run is
-instant from the cache. The event folder was byte-for-byte unchanged (names, sizes, mtimes).
+instant from the cache. Every entry in the event folder kept its name, size and mtime.
 
 Handheld masters trigger many scene frames (camera moves), so they end up close to 1 frame per
 second; static shots stay at 1 per 2 s. Estimated cost of pass 1 for the whole event:
