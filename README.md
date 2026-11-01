@@ -7,8 +7,8 @@ event-specific category structure (numbered, Greeklish folder names, ΡΟΗ / B-
 after review moves everything into place with a full undo journal, a shot index and per-category
 contact sheets. It then prepares B-roll selections and Premiere sequences.
 
-> Status: **M1 — scan, clock sync & checks** (CLI). `scan`, `sync` and `timeline` work read-only;
-> later stages are stubs.
+> Status: **M2 — frames & contact sheets** (CLI). `scan`, `sync`, `timeline` and `frames` work
+> read-only; later stages are stubs.
 
 ## Usage (so far)
 
@@ -17,6 +17,7 @@ hypershutter scan "/Volumes/T7/<event>/"        # clips, sidecars, devices, dupl
 hypershutter sync "/Volumes/T7/<event>/"        # clock offsets from shared audio
 hypershutter sync "/Volumes/T7/<event>/" --set A=+14:00 --manual-only   # manual override
 hypershutter timeline "/Volumes/T7/<event>/"    # every clip on the corrected timeline
+hypershutter frames "/Volumes/T7/<event>/"      # frames (1 per 2 s + scene changes), contact sheets, cost estimate
 ```
 
 Clock offsets are stated like the shot index states them: relative to what the camera clock
@@ -74,6 +75,8 @@ python3.13 -m venv .venv
 - [docs/workflow-organizing.md](docs/workflow-organizing.md): how footage is organized (user's export, Greek)
 - [docs/workflow-editing.md](docs/workflow-editing.md): B-roll, highlights, ροή, Premiere XML rules
 - [docs/m0-findings.md](docs/m0-findings.md): cameras, clocks, formats, evaluation targets
+- [docs/m1-clock-sync.md](docs/m1-clock-sync.md): scan, devices, clock sync (NCC vs GCC-PHAT), results
+- [docs/m2-frames.md](docs/m2-frames.md): frame extraction benchmark, contact sheet sizing, cost estimate
 
 ## Accuracy
 

@@ -9,13 +9,13 @@ from datetime import timedelta
 from pathlib import Path
 
 from hypershutter import __version__
-from hypershutter.core import checks, config, scan, sync
+from hypershutter.core import checks, config, cost, frames, scan, sheets, sync
 from hypershutter.core.media import fmt_duration, fmt_offset
 from hypershutter.core.project import Project
 
 # Subcommands still to be built, with the milestone that delivers them.
 PLANNED = {
-    "frames": "M2", "describe": "M3", "structure": "M3", "eval": "M3",
+    "describe": "M3", "structure": "M3", "eval": "M3",
     "apply": "M5", "undo": "M5", "premiere": "M6",
 }
 
@@ -112,6 +112,44 @@ def cmd_sync(args) -> int:
     return 0
 
 
+def cmd_frames(args) -> int:
+    import shutil
+    import time
+
+    folder = Path(args.folder).expanduser()
+    p = _load_or_scan(folder, rescan=False, workers=6)
+    if not p.synced_at:
+        print("note: clocks not synced yet (run `sync`); sheet times use the uncorrected clocks", file=sys.stderr)
+    wanted = set(args.clips.split(",")) if args.clips else None
+    clips = [c for c in p.clips.values() if wanted is None or c.id in wanted]
+    fs = frames.FrameSettings(interval=args.interval, workers=args.workers)
+    t0 = time.time()
+    got = frames.extract_all(folder, clips, fs, progress=_progress)
+    t1 = time.time()
+    n_sheets = 0
+    for cid, fr in got.items():
+        paths = sheets.clip_sheets(p.clips[cid], fr, p.corrected(p.clips[cid]), fs)
+        n_sheets += len(paths)
+        if args.sample_out:
+            out = Path(args.sample_out).expanduser()
+            out.mkdir(parents=True, exist_ok=True)
+            for k, sp in enumerate(paths):
+                shutil.copy(sp, out / f"{cid}_{k + 1:02d}.jpg")
+    t2 = time.time()
+    n_frames = sum(len(f) for f in got.values())
+    n_scene = sum(x.scene for f in got.values() for x in f)
+    footage = sum(p.clips[c].duration for c in got)
+    print(f"\n{len(got)} clips, {fmt_duration(footage)} of footage → {n_frames} frames "
+          f"({n_scene} at scene changes), {n_sheets} sheets")
+    print(f"time: frames {t1 - t0:.0f}s, sheets {t2 - t1:.0f}s (cached clips are instant)")
+    print("\nestimated cost to describe every clip (pass 1):")
+    for model, info in cost.MODELS.items():
+        e = cost.estimate([len(f) for f in got.values()], model)
+        print(f"  {info['label']:26} ~{e.input_tokens / 1e6:.2f}M in + {e.output_tokens / 1e3:.0f}K out tokens"
+              f" ≈ ${e.cost_usd:.2f}, ~{e.minutes:.0f} min")
+    return 0
+
+
 def cmd_timeline(args) -> int:
     folder = Path(args.folder).expanduser()
     p = _load_or_scan(folder, rescan=False, workers=6)
@@ -138,6 +176,13 @@ def main(argv: list[str] | None = None) -> int:
     sp.add_argument("--set", action="append", metavar="DEV=+HH:MM", help="manual offset vs the device clock")
     sp.add_argument("--manual-only", action="store_true", help="only apply --set, skip audio matching")
     sp.set_defaults(func=cmd_sync)
+
+    sp = sub.add_parser("frames", help="extract frames and build contact sheets (cached)")
+    sp.add_argument("folder"); sp.add_argument("--interval", type=float, default=2.0, help="seconds per frame")
+    sp.add_argument("--clips", help="comma-separated clip ids (default: all)")
+    sp.add_argument("--workers", type=int, default=6)
+    sp.add_argument("--sample-out", help="also copy the sheets of these clips to a folder")
+    sp.set_defaults(func=cmd_frames)
 
     sp = sub.add_parser("timeline", help="print every clip on the corrected timeline")
     sp.add_argument("folder"); sp.add_argument("--limit", type=int, default=0)

@@ -68,7 +68,7 @@ drone = +03:00 (file name agrees). Confirmation pairs from the user's index: `C6
 
 - Baptism example: folder membership of each clip.
 - Older organized events (067–071) also have indexes and folders → more evaluation data.
-- The 25-07 wedding folder currently has its clips back in `CLIP`/`CLIP2`/`CLIP3`/`DRONE*`, but its
+- The 25-07 wedding (folder `gamos 25-07` on the T7, confirmed by the user) currently has its clips back in `CLIP`/`CLIP2`/`CLIP3`/`DRONE*`, but its
   `00 ΕΥΡΕΤΗΡΙΟ ΠΛΑΝΩΝ.md` still lists every clip's category → the evaluator must also accept the
   **index file as ground truth**. That event is a wedding + baptism on the same day.
 
