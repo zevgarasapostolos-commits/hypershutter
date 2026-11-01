@@ -24,7 +24,15 @@ def run(browser: bool = False, port: int = 0, debug: bool = False) -> None:
         got = window.create_file_dialog(webview.FileDialog.FOLDER)
         return str(got[0]) if got else None
 
-    bridge = Bridge(server.media_url, None if browser else pick_folder)
+    def pick_song() -> str | None:
+        if window is None:
+            return None
+        import webview
+        got = window.create_file_dialog(webview.FileDialog.OPEN,
+                                        file_types=("Audio (*.mp3;*.wav;*.m4a;*.aac;*.aif;*.aiff;*.flac)",))
+        return str(got[0]) if got else None
+
+    bridge = Bridge(server.media_url, None if browser else pick_folder, None if browser else pick_song)
     server.bridge = bridge
     server.start()
 

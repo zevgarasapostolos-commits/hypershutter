@@ -28,6 +28,12 @@
     applyProgress: null,
     applyDone: null,
     backupDest: null,
+    edit: null, // edit_info
+    brollKeys: null,
+    broll: null,
+    song: null,
+    previews: true,
+    premiere: null, // {progress, result}
   };
 
   function esc(s) {
@@ -72,7 +78,7 @@
 
   function canGo(v) {
     if (v === "analyze") return !!S.project;
-    if (v === "review") return !!(S.project && S.project.has_structure);
+    if (v === "review" || v === "edit") return !!(S.project && S.project.has_structure);
     return true;
   }
 
@@ -88,6 +94,7 @@
     S.view = v;
     updateNav();
     if (v === "review" && !S.review) S.review = await call("review");
+    if (v === "edit") await loadEdit();
     render();
   }
 
@@ -96,6 +103,7 @@
     view.scrollTop = 0;
     if (S.view === "home") renderHome();
     else if (S.view === "analyze") renderAnalyze();
+    else if (S.view === "edit") renderEdit();
     else renderReview();
   }
 
@@ -704,10 +712,150 @@
     return r;
   }
 
+  // ---------------- Edit prep ----------------
+
+  async function loadEdit() {
+    S.edit = await call("edit_info");
+    if (!S.song) S.song = S.edit.song;
+    if (!S.brollKeys && S.edit.ceremonies.length) S.brollKeys = S.edit.ceremonies[0].keys;
+    S.broll = S.brollKeys ? await call("broll", { keys: S.brollKeys }) : null;
+  }
+
+  function fmtSec(x) {
+    const s = Math.round(x);
+    const h = Math.floor(s / 3600), m = Math.floor((s % 3600) / 60), r = s % 60;
+    return (h ? h + ":" + String(m).padStart(2, "0") : m) + ":" + String(r).padStart(2, "0");
+  }
+
+  function brollHtml() {
+    const B = S.broll;
+    if (!B) return "";
+    let html = "";
+    for (const g of ["mum_baby", "crowd", "faces_family", "details"]) {
+      const rows = B.groups[g];
+      if (!rows.length) continue;
+      html += `<h3 class="group-title">${esc(t("edit.group." + g))} (${rows.length})</h3>
+        <table class="table broll"><tbody>${rows
+          .map(
+            (r) => `<tr><td><code>${esc(r.clip)}</code>${r.star ? ' <span class="gold-star" title="⭐">★</span>' : ""}</td><td>${esc(r.camera)}</td>
+            <td class="num">${esc(r.time)}</td><td class="num">${esc(r.duration)}</td><td class="muted">${esc(r.notes.join(", "))}</td><td>${esc(r.desc)}</td></tr>`
+          )
+          .join("")}</tbody></table>`;
+    }
+    if (B.masters.length) {
+      html += `<h3 class="group-title">${esc(t("edit.in_masters"))}</h3>`;
+      for (const m of B.masters) {
+        html += `<p class="master-line"><code>${esc(m.clip)}</code> <span class="muted">${esc(m.time)} · ${esc(m.duration)}</span></p><ul class="flag-list">${
+          m.segments.length
+            ? m.segments.map((x) => `<li>${fmtSec(x.in)} → ${fmtSec(x.out)} ${esc(x.what)}</li>`).join("")
+            : `<li class="muted">${esc(t("edit.no_breaks"))}</li>`
+        }</ul>`;
+      }
+    }
+    return html;
+  }
+
+  function premiereCard() {
+    const E = S.edit;
+    const P = S.premiere || {};
+    const running = jobRunning("premiere");
+    let body = `<h2 class="card-title">${esc(t("edit.premiere"))}</h2><p class="hint">${esc(t("edit.premiere_hint"))}</p>
+      <div class="field"><span class="label">${esc(t("edit.song"))}</span>
+        <div class="inline">${S.song ? `<code>${esc(S.song)}</code>` : `<span class="warn">${esc(t("edit.no_song"))}</span>`}
+        <button class="btn small quiet" id="pick-song" ${running ? "disabled" : ""}>${esc(t("edit.choose_song"))}</button></div></div>
+      <label class="toggle"><input type="checkbox" id="do-previews" ${S.previews ? "checked" : ""}> ${esc(t("edit.previews"))}</label>
+      <p class="muted">${esc(E.read_only ? t("edit.read_only") : t("edit.out", { dir: E.out_dir }))}</p>`;
+    if (running && P.progress) {
+      const pr = P.progress;
+      const pct = pr.total ? Math.round((100 * pr.done) / pr.total) : 0;
+      body += `<p class="progress-line">${esc(t("edit.progress", { stage: pr.stage, done: pr.done, total: pr.total }))}</p><span class="bar"><span style="width:${pct}%"></span></span>`;
+    }
+    if (P.result) {
+      const R = P.result;
+      body += `<p class="ok">${esc(t("edit.done"))}</p><ul class="flag-list">`;
+      for (const k of ["highlights", "flow"]) {
+        if (!R[k]) continue;
+        body += `<li><code>${esc(R[k].xml)}</code> <span class="muted">${esc(t("edit.length", { len: fmtSec(R[k].seconds), clips: R[k].clips }))}</span>${
+          R[k].preview ? `<br><code>${esc(R[k].preview)}</code>` : ""
+        }</li>`;
+      }
+      body += "</ul>";
+      if (R.warnings.length) body += `<p class="label">${esc(t("edit.notes"))}</p><ul class="flag-list">${R.warnings.map((w) => `<li>${esc(w)}</li>`).join("")}</ul>`;
+    }
+    body += `<div class="actions"><button class="btn primary" id="make" ${running || !S.song ? "disabled" : ""}>${esc(t("edit.make"))}</button></div>`;
+    return body;
+  }
+
+  function renderEdit() {
+    const E = S.edit;
+    if (!E) {
+      view.innerHTML = "";
+      return;
+    }
+    const parts = E.ceremonies
+      .map((c) => `<option value="c:${esc(c.keys.join(","))}" ${S.brollKeys && S.brollKeys.join(",") === c.keys.join(",") ? "selected" : ""}>${esc(c.name)}</option>`)
+      .concat(E.folders.map((f) => `<option value="f:${esc(f.key)}" ${S.brollKeys && S.brollKeys.length === 1 && S.brollKeys[0] === f.key ? "selected" : ""}>${esc(f.folder)}</option>`))
+      .join("");
+    view.innerHTML = `
+      <header class="view-head"><p class="eyebrow">${esc(t("edit.eyebrow"))}</p><h1>${esc(S.project.name)}</h1></header>
+      <section class="card" id="premiere-card">${premiereCard()}</section>
+      <section class="card wide-card">
+        <h2 class="card-title">${esc(t("edit.broll"))}</h2>
+        <p class="hint">${esc(t("edit.broll_hint"))}</p>
+        <label class="field"><span class="label">${esc(t("edit.part"))}</span><select id="broll-part">${parts}</select></label>
+        <div id="broll">${brollHtml()}</div>
+      </section>`;
+    bindEdit();
+  }
+
+  function renderPremiereCard() {
+    const c = $("#premiere-card");
+    if (!c) return;
+    c.innerHTML = premiereCard();
+    bindEdit();
+  }
+
+  function bindEdit() {
+    const part = $("#broll-part");
+    if (part)
+      part.onchange = async () => {
+        const v = part.value;
+        S.brollKeys = v.slice(2).split(",");
+        S.broll = await call("broll", { keys: S.brollKeys });
+        $("#broll").innerHTML = brollHtml();
+      };
+    const ps = $("#pick-song");
+    if (ps)
+      ps.onclick = async () => {
+        const f = await call("pick_song");
+        if (f) S.song = f;
+        renderPremiereCard();
+      };
+    const pv = $("#do-previews");
+    if (pv) pv.onchange = () => (S.previews = pv.checked);
+    const mk = $("#make");
+    if (mk)
+      mk.onclick = async () => {
+        S.premiere = { progress: { stage: "highlights", done: 0, total: 1 } };
+        await call("start_premiere", { song: S.song, preview: S.previews });
+        renderPremiereCard();
+      };
+  }
+
   // ---------------- events from the core ----------------
 
   HS.on((ev) => {
-    if (ev.type === "progress" && ["backup", "move", "undo"].includes(ev.stage)) {
+    if (ev.type === "progress" && ["edit", "preview"].includes(ev.stage)) {
+      S.premiere = Object.assign(S.premiere || {}, { progress: ev });
+      renderPremiereCard();
+    } else if (ev.type === "job_done" && ev.name === "premiere") {
+      S.premiere = { result: ev.result };
+      renderPremiereCard();
+    } else if (ev.type === "job_error" && ev.name === "premiere") {
+      S.premiere = null;
+      toast(t("common.error") + ": " + ev.error, true);
+      renderPremiereCard();
+    } else if (ev.type === "progress" && ["backup", "move", "undo"].includes(ev.stage)) {
       S.applyProgress = ev;
       renderApplyCard();
     } else if (ev.type === "progress") {

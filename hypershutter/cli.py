@@ -14,7 +14,7 @@ from hypershutter.core.media import fmt_duration, fmt_offset
 from hypershutter.core.project import Project
 
 # Subcommands still to be built, with the milestone that delivers them.
-PLANNED = {"premiere": "M6"}
+PLANNED: dict[str, str] = {}
 
 
 def cmd_doctor(_args) -> int:
@@ -308,6 +308,41 @@ def cmd_undo(args) -> int:
     return 0 if u["status"] == "undone" else 1
 
 
+def cmd_premiere(args) -> int:
+    from hypershutter.core import premiere
+    folder = Path(args.folder).expanduser()
+    p, st = _reviewed(folder)
+    if st is None:
+        return 1
+    which = (args.only,) if args.only else ("highlights", "flow")
+    r = premiere.export(p, st, Path(args.song).expanduser() if args.song else None, not args.no_preview, which,
+                        progress=_progress)
+    print(f"song: {r['song']}")
+    for key in which:
+        x = r[key]
+        print(f"{key}: {x['xml']}  ({fmt_duration(x['seconds'])}, {x['clips']} clips)" +
+              (f"\n  preview: {x['preview']}" if x.get("preview") else ""))
+    for w in r["warnings"]:
+        print(f"  note: {w}")
+    return 0
+
+
+def cmd_broll(args) -> int:
+    from hypershutter.core import edit, premiere
+    folder = Path(args.folder).expanduser()
+    p, st = _reviewed(folder)
+    if st is None:
+        return 1
+    descs = premiere.descriptions(p, st)
+    groups = edit.ceremony_groups(st)
+    if args.folder_number:
+        cats = [c for c in st.categories if f"{c.number:02d}{c.sub}".startswith(args.folder_number.zfill(2))]
+        groups = [(cats[0].label_el, cats)] if cats else []
+    for name, cats in groups:
+        print(edit.broll_markdown(name, edit.broll_list(p, st, descs, [c.key for c in cats])))
+    return 0
+
+
 def cmd_key(args) -> int:
     import getpass
 
@@ -402,6 +437,15 @@ def main(argv: list[str] | None = None) -> int:
     sp = sub.add_parser("undo", help="move every file of the last apply back to where it was")
     sp.add_argument("folder"); sp.add_argument("--yes", action="store_true")
     sp.set_defaults(func=cmd_undo)
+
+    sp = sub.add_parser("premiere", help="highlights + ροή as Premiere XML, with low-res previews")
+    sp.add_argument("folder"); sp.add_argument("--song", help="song for the highlights (default: the event's music/)")
+    sp.add_argument("--no-preview", action="store_true"); sp.add_argument("--only", choices=["highlights", "flow"])
+    sp.set_defaults(func=cmd_premiere)
+
+    sp = sub.add_parser("broll", help="B-roll lists per ceremony (or one folder), strongest first")
+    sp.add_argument("folder"); sp.add_argument("--folder-number", help="e.g. 08 or 09a")
+    sp.set_defaults(func=cmd_broll)
 
     sp = sub.add_parser("app", help="open the HyperShutter window (Home, Scan & Analyze, Review)")
     sp.add_argument("--browser", action="store_true", help="no window: print a local URL for a browser (development)")
