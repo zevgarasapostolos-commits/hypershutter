@@ -217,3 +217,12 @@ figcaption { display: flex; flex-direction: column; padding: 6px 2px 2px; }
 .modal-actions { display: flex; justify-content: flex-end; gap: 8px; margin-top: var(--hs-space-3); }
 
 @media (prefers-reduced-motion: reduce) { * { transition: none !important; } }
+
+/* ---------- Apply ---------- */
+.apply-card { border-color: var(--hs-gold); max-width: none; margin-top: var(--hs-space-2); }
+.apply-card p { margin: 0 0 8px; }
+.warn { color: #7A2626; }
+.ok { color: var(--hs-slate); border-left: 2px solid var(--hs-gold); padding-left: 10px; }
+.backup-row { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; margin-top: 8px; }
+.progress-line { margin-top: var(--hs-space-3) !important; color: var(--hs-slate); }
+.last-run { align-self: center; font-size: 13px; }

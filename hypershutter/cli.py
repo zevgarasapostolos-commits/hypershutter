@@ -14,7 +14,7 @@ from hypershutter.core.media import fmt_duration, fmt_offset
 from hypershutter.core.project import Project
 
 # Subcommands still to be built, with the milestone that delivers them.
-PLANNED = {"apply": "M5", "undo": "M5", "premiere": "M6"}
+PLANNED = {"premiere": "M6"}
 
 
 def cmd_doctor(_args) -> int:
@@ -243,6 +243,71 @@ def cmd_eval(args) -> int:
     return 0
 
 
+def _reviewed(folder: Path):
+    from hypershutter.core import review
+    p = Project.load(folder)
+    st = review.load(p) if p else None
+    if st is None:
+        print("no structure for this folder yet: run `structure` (or analyze in the app) first", file=sys.stderr)
+    return p, st
+
+
+def cmd_apply(args) -> int:
+    from hypershutter.core import execute, index
+    folder = Path(args.folder).expanduser()
+    p, st = _reviewed(folder)
+    if st is None:
+        return 1
+    try:
+        execute.check_allowed(p, args.force)
+    except PermissionError as e:
+        print(f"refused: {e}")
+        return 1
+    pl = execute.plan(p, st, args.rename)
+    by_folder: dict[str, int] = {}
+    for m in pl.moves:
+        if m.kind == "clip":
+            by_folder[m.dst.split("/", 1)[0]] = by_folder.get(m.dst.split("/", 1)[0], 0) + 1
+    print(f"{p.name}: {len(pl.moves)} files to move ({sum(m.kind == 'sidecar' for m in pl.moves)} sidecars), "
+          f"{len(pl.folders)} new folders, {pl.in_place} already in place, {len(pl.unassigned)} stay where they are")
+    for name, n in sorted(by_folder.items()):
+        print(f"  {name:50} {n:4} clips")
+    for c in pl.conflicts:
+        print(f"  conflict: {c}")
+    if not pl.ok:
+        return 1
+    if not args.apply:
+        print("\ndry run: nothing moved. Add --apply to move the files (undo with `hypershutter undo`).")
+        return 0
+    preset = config.load_preset(p.event_type)
+    if args.backup:
+        r = execute.backup(p, Path(args.backup), progress=_progress)
+        print(f"backup: {r['verified']} files verified in {r['dest']} ({r['copied']} copied)")
+    j = execute.apply(p, st, pl, preset, progress=_progress, extras=index.generated_files, force=args.force)
+    print(f"moved {sum(m['status'] == 'moved' for m in j['moves'])} files; wrote {len(j['files_created'])} files "
+          f"(index + contact sheets). Journal {j['id']} in {folder / execute.JOURNAL_DIR}.")
+    return 0
+
+
+def cmd_undo(args) -> int:
+    from hypershutter.core import execute
+    folder = Path(args.folder).expanduser()
+    p = Project.load(folder)
+    j = execute.last_applied(p) if p else None
+    if j is None:
+        print("nothing to undo")
+        return 1
+    print(f"last run {j['id']} ({j['status']}): {sum(m['status'] == 'moved' for m in j['moves'])} files moved")
+    if not args.yes and input("Move every file back? [y/N] ").strip().lower() not in ("y", "yes", "ν", "ναι"):
+        print("cancelled")
+        return 1
+    u = execute.undo(p, j, progress=_progress)
+    print(f"{u['status']}: {sum(m['status'] == 'undone' for m in u['moves'])} files back in place")
+    for prob in u.get("problems", []):
+        print(f"  problem: {prob}")
+    return 0 if u["status"] == "undone" else 1
+
+
 def cmd_key(args) -> int:
     import getpass
 
@@ -325,6 +390,18 @@ def main(argv: list[str] | None = None) -> int:
     sp = sub.add_parser("key", help="store the Anthropic API key in the macOS Keychain")
     sp.add_argument("action", choices=["set", "status", "delete"], nargs="?", default="status")
     sp.set_defaults(func=cmd_key)
+
+    sp = sub.add_parser("apply", help="move clips into the reviewed folders (dry run unless --apply)")
+    sp.add_argument("folder")
+    sp.add_argument("--apply", action="store_true", help="really move the files (journaled, undoable)")
+    sp.add_argument("--backup", metavar="DIR", help="copy and verify every file to DIR first")
+    sp.add_argument("--rename", metavar="PATTERN", help="rename files, e.g. '{num}_{n:03d}_{name}' (off by default)")
+    sp.add_argument("--force", action="store_true", help="allow an event that looks organized by hand")
+    sp.set_defaults(func=cmd_apply)
+
+    sp = sub.add_parser("undo", help="move every file of the last apply back to where it was")
+    sp.add_argument("folder"); sp.add_argument("--yes", action="store_true")
+    sp.set_defaults(func=cmd_undo)
 
     sp = sub.add_parser("app", help="open the HyperShutter window (Home, Scan & Analyze, Review)")
     sp.add_argument("--browser", action="store_true", help="no window: print a local URL for a browser (development)")

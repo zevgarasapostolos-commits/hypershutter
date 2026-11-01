@@ -9,12 +9,10 @@
   "nav.features": "Features",
   "nav.help": "Help & Support",
   "nav.about": "About",
-
   "common.cancel": "Cancel",
   "common.ok": "Continue",
   "common.error": "Something went wrong",
   "common.lang": "Language",
-
   "home.eyebrow": "Projects",
   "home.title": "Start with an event folder",
   "home.drop": "Drop an event folder here",
@@ -37,7 +35,6 @@
   "home.known": "Scanned before",
   "home.new": "Not scanned yet",
   "home.folder": "Folder",
-
   "analyze.eyebrow": "Scan & Analyze",
   "analyze.idle": "Choose an event folder on the Projects screen first.",
   "stage.scan": "Scan files",
@@ -82,7 +79,6 @@
   "analyze.open_review": "Open Review",
   "analyze.rescan": "Scan again",
   "analyze.start": "Start scan",
-
   "review.eyebrow": "Review",
   "review.summary": "{clips} clips · {folders} folders · {review} to check",
   "review.source_ai": "AI proposal",
@@ -116,5 +112,25 @@
   "model.claude-opus-5-5": "Opus 5.5 · most accurate (default)",
   "model.claude-sonnet-5-5": "Sonnet 5.5 · half the cost",
   "model.claude-haiku-5-5": "Haiku 5.5 · cheapest, for quick tests",
-  "analyze.cached": "{n} clips already described (free)"
+  "analyze.cached": "{n} clips already described (free)",
+  "apply.open": "Apply…",
+  "apply.title": "Move the files into the folders",
+  "apply.summary": "{clips} clips and {sidecars} sidecar files ({gb} GB) go into {folders} folders, {new} of them new. {in_place} files are already in place.",
+  "apply.safe": "Sidecars travel with their clips. Nothing is deleted, re-encoded or overwritten, and every move is written to a journal first, so it can be undone.",
+  "apply.unassigned": "{n} files are in no folder and stay where they are.",
+  "apply.conflicts": "Fix these first:",
+  "apply.nothing": "Everything is already in place.",
+  "apply.backup": "Back up every file first (verified copy)",
+  "apply.choose": "Choose backup folder…",
+  "apply.go": "Move files",
+  "apply.close": "Close",
+  "apply.progress_backup": "Backing up and verifying… {done}/{total}",
+  "apply.progress_move": "Moving… {done}/{total}",
+  "apply.progress_undo": "Moving back… {done}/{total}",
+  "apply.done": "Done: {moved} files moved. The shot index and the contact sheets are in the event folder.",
+  "apply.last": "Last applied {when}: {n} files moved.",
+  "apply.undo": "Undo",
+  "apply.undo_q": "Move every file of the last apply back to exactly where it was?",
+  "apply.undone": "Undone: {n} files are back where they were.",
+  "apply.confirm": "Move {clips} clips into {folders} folders now?"
 }

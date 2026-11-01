@@ -99,3 +99,13 @@ def test_truth_from_index(tmp_path):
     md.write_text("# x\n\n## 01 ΣΤΟΛΙΣΜΟΣ\n\n| clip | κάμ. |\n|---|---|\n| `C4156.MP4` | A |\n\n"
                   "## 05 DRONE\n| `DJI_20261011163207_0033_D.MP4` | DJI |\n", encoding="utf-8")
     assert evaluate.truth_from_index(md) == {"C4156": "01 ΣΤΟΛΙΣΜΟΣ", "DJI_20261011163207_0033_D": "05 DRONE"}
+
+
+def test_broll_without_its_flow_has_no_letter():
+    p = _project(SPEC)
+    raw = _raw(p)
+    for a in raw["assignments"]:
+        if a["part"] == "p3":
+            a["part"] = "p4"                                   # nothing left in the ΡΟΗ
+    st = structure.finalize(p, raw, BLACK, config.load_preset("baptism"))
+    assert st.folder_of("C6") == "04 KATIXISI - B-ROLL"

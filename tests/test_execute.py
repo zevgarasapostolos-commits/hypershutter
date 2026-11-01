@@ -175,3 +175,25 @@ def test_backup_copies_and_verifies(event, tmp_path):
     assert execute.backup(p, tmp_path / "backup")["copied"] == 0
     with pytest.raises(ValueError):
         execute.backup(p, Path(p.root) / "inside")
+
+
+def test_reapply_after_an_edit_moves_only_the_change_and_undoes_in_order(event):
+    p, st = event
+    root = Path(p.root)
+    before = _snapshot(root)
+    execute.apply(p, st, execute.plan(p, st), PRESET, extras=index.generated_files)
+    after_first = _snapshot(root)
+    (root / "00 CONTACT SHEETS").mkdir(exist_ok=True)
+    (root / "00 CONTACT SHEETS/02.jpg").write_bytes(b"sheet of the drone folder")    # stale after the edit
+    after_first = _snapshot(root)
+    st.assignment["DJI_20261011160300_0001_D"] = "p1"                              # the drone clip moves to 01
+    st.categories = [c for c in st.categories if c.key != "p2"]
+    pl = execute.plan(p, st)
+    assert [m.clip for m in pl.moves] == ["DJI_20261011160300_0001_D"] * 2      # clip + its .SRT
+    execute.apply(p, st, pl, PRESET, extras=index.generated_files)
+    assert not (root / "02 DRONE").exists() and not (root / "00 CONTACT SHEETS/02.jpg").exists()
+    execute.undo(p)                                                              # undoes the second run only
+    assert _snapshot(root) == after_first
+    execute.undo(p)                                                              # then the first
+    rest = {k: v for k, v in _snapshot(root).items() if k != "00 CONTACT SHEETS/02.jpg"}   # made by the test
+    assert rest == before

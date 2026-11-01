@@ -7,9 +7,9 @@ event-specific category structure (numbered, Greeklish folder names, ΡΟΗ / B-
 after review moves everything into place with a full undo journal, a shot index and per-category
 contact sheets. It then prepares B-roll selections and Premiere sequences.
 
-> Status: **M4 — app shell**. The window (`hypershutter app`) has Projects, Scan & Analyze and
-> Review; the CLI covers `scan`, `sync`, `timeline`, `frames`, `structure` and `eval`. Everything
-> is still read-only: `apply`, `undo` and `premiere` are stubs.
+> Status: **M5 — apply & undo**. The window (`hypershutter app`) has Projects, Scan & Analyze and
+> Review with Apply / Undo; the CLI covers `scan`, `sync`, `timeline`, `frames`, `structure`, `eval`,
+> `apply` and `undo`. `premiere` (M6) is a stub.
 
 ## Usage (so far)
 
@@ -24,6 +24,9 @@ hypershutter frames "/Volumes/T7/<event>/"      # frames (1 per 2 s + scene chan
 hypershutter key set                            # store the Anthropic API key in the macOS Keychain
 hypershutter structure "/Volumes/T7/<event>/"   # pass 1 (describe) + pass 2 (structure), dry run
 hypershutter eval "/Volumes/T7/<organized event>/"   # accuracy against the user's own folders
+hypershutter apply "/Volumes/T7/<event>/"       # dry run: what would move where
+hypershutter apply "/Volumes/T7/<event>/" --apply [--backup /Volumes/Backup]   # move (journaled)
+hypershutter undo "/Volumes/T7/<event>/"        # every file back to its exact original path
 ```
 
 The AI model defaults to Claude Opus 5.5 (`--model claude-sonnet-5-5` or `claude-haiku-5-5` are
@@ -72,7 +75,7 @@ python3.13 -m venv .venv
 
 | Path | Contents |
 |---|---|
-| `hypershutter/core/` | pipeline: scan, checks, sync, frames, sheets, describe, structure, review, evaluate, pipeline |
+| `hypershutter/core/` | pipeline: scan, checks, sync, frames, sheets, describe, structure, review, execute (apply/undo/backup), index, evaluate, pipeline |
 | `hypershutter/app/` | `main.py` (pywebview window), `server.py` (local server on 127.0.0.1 with a per-run token), `bridge.py` (the API every screen calls) |
 | `ui/` | plain HTML/CSS/JS: `css/tokens.css`, `css/app.css`, `js/`, `locales/en.json`, `locales/el.json` |
 | `presets/` | category **hints** per event type (never fixed lists) |
@@ -87,6 +90,7 @@ python3.13 -m venv .venv
 - [docs/m1-clock-sync.md](docs/m1-clock-sync.md): scan, devices, clock sync (NCC vs GCC-PHAT), results
 - [docs/m2-frames.md](docs/m2-frames.md): frame extraction benchmark, contact sheet sizing, cost estimate
 - [docs/m3-describe-structure.md](docs/m3-describe-structure.md): the two AI passes, validation rules, evaluation
+- [docs/m5-apply.md](docs/m5-apply.md): plan, write-ahead journal, move, undo, backup, index, contact sheets
 
 ## Accuracy
 

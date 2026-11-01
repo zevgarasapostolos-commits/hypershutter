@@ -292,6 +292,11 @@ def finalize(p: Project, raw: dict, descriptions: dict[str, dict], preset: dict,
     for cat in cats:
         cat.clips = [c.id for c in clips if assign.get(c.id) == cat.key]
     cats = [c for c in cats if c.clips]
+    present = {c.key for c in cats}
+    for cat in cats:                     # a B-ROLL without its ΡΟΗ is not an "a" part (06, not 06a)
+        if cat.sub and cat.parent not in present:
+            cat.sub, cat.parent = "", ""
+            cat.folder = folder_name(cat.number, cat.label_el, "", style)
     review = [c.id for c in clips if conf.get(c.id, 0) < REVIEW_BELOW]
     return Structure(cats, {c: assign[c] for c in order if c in assign}, conf, review, raw.get("notes", ""), source)
 

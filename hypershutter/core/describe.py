@@ -160,9 +160,15 @@ def _subsample(frames: list[Frame], max_frames: int) -> list[Frame]:
 
 
 def _cache_file(p: Project, clip: Clip, model: str, fs: FrameSettings) -> Path:
+    """Keyed by the file itself (name, size, mtime), not by the project: a copy of the same clip
+    or a re-mounted drive is not paid for twice. Older per-project caches are moved over."""
     key = store.file_key(clip.name, clip.size, clip.mtime)
     tag = hashlib.sha1(f"{key}|{model}|{fs.key()}|{PROMPT_VERSION}".encode()).hexdigest()[:24]
-    return config.cache_dir("describe", store.project_id(Path(p.root))) / f"{tag}.json"
+    path = config.cache_dir("describe") / f"{tag}.json"
+    legacy = config.cache_dir("describe") / store.project_id(Path(p.root)) / f"{tag}.json"
+    if not path.exists() and legacy.exists():
+        legacy.rename(path)
+    return path
 
 
 def cached(p: Project, clip: Clip, model: str, fs: FrameSettings) -> dict | None:

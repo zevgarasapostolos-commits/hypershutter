@@ -24,6 +24,10 @@
     sel: new Set(),
     lastClick: null,
     reviewOnly: false,
+    apply: null, // dry-run plan while the Apply card is open
+    applyProgress: null,
+    applyDone: null,
+    backupDest: null,
   };
 
   function esc(s) {
@@ -397,15 +401,19 @@
         <div class="head-actions">
           <label class="toggle"><input type="checkbox" id="only" ${S.reviewOnly ? "checked" : ""}> ${esc(t("review.only"))} (${R.needs_review.length})</label>
           <button class="btn quiet" id="reset" ${R.edited ? "" : "disabled"}>${esc(t("review.reset"))}</button>
+          <button class="btn primary" id="apply-open">${esc(t("apply.open"))}</button>
         </div>
       </header>
+      <section class="card apply-card" id="apply-card" ${S.apply ? "" : "hidden"}>${S.apply ? applyCard() : ""}</section>
       ${R.notes ? `<details class="notes"><summary>${esc(t("review.notes"))}</summary><p>${esc(R.notes)}</p></details>` : ""}
-      <p class="hint">${esc(t("review.hint"))} ${esc(t("review.apply_soon"))}</p>
+      <p class="hint">${esc(t("review.hint"))}</p>
       <div class="review">
         <ol class="folders" id="folders">${items}</ol>
         <section class="panel" id="panel"></section>
       </div>`;
 
+    $("#apply-open").onclick = openApply;
+    bindApply();
     $("#only").onchange = (e) => {
       S.reviewOnly = e.target.checked;
       S.sel.clear();
@@ -442,6 +450,105 @@
       (b) => (b.onclick = () => edit("move_group", { key: b.closest(".folder").dataset.key, delta: +b.dataset.move }))
     );
     renderPanel();
+  }
+
+  // ---------------- Apply / Undo ----------------
+
+  async function openApply() {
+    S.apply = await call("apply_plan");
+    S.applyDone = null;
+    renderReview();
+    $("#apply-card").scrollIntoView({ block: "nearest" });
+  }
+
+  function jobRunning(...names) {
+    return !!(HS.job && HS.job.status === "running" && names.includes(HS.job.name));
+  }
+
+  function applyCard() {
+    const A = S.apply;
+    const running = jobRunning("apply", "undo");
+    const pr = S.applyProgress;
+    let body = `<h2 class="card-title">${esc(t("apply.title"))}</h2>`;
+    if (A.blocked) {
+      body += `<p class="warn">${esc(A.blocked)}</p>`;
+    } else if (!A.moves && !A.conflicts.length) {
+      body += `<p>${esc(t("apply.nothing"))}</p>`;
+    } else {
+      body += `<p>${esc(t("apply.summary", { clips: A.clips, sidecars: A.sidecars, gb: A.gb, folders: A.folders, new: A.new_folders, in_place: A.in_place }))}</p>
+        <p class="hint">${esc(t("apply.safe"))}</p>`;
+      if (A.unassigned) body += `<p class="muted">${esc(t("apply.unassigned", { n: A.unassigned }))}</p>`;
+      if (A.conflicts.length)
+        body += `<p class="warn">${esc(t("apply.conflicts"))}</p><ul class="flag-list">${A.conflicts.map((c) => `<li>${esc(c)}</li>`).join("")}</ul>`;
+      body += `<div class="backup-row"><label class="toggle"><input type="checkbox" id="do-backup" ${S.backupDest ? "checked" : ""}> ${esc(t("apply.backup"))}</label>
+        ${S.backupDest ? `<code>${esc(S.backupDest)}</code>` : ""}<button class="btn small quiet" id="pick-backup">${esc(t("apply.choose"))}</button></div>`;
+    }
+    if (running && pr) {
+      const pct = pr.total ? Math.round((100 * pr.done) / pr.total) : 0;
+      body += `<p class="progress-line">${esc(t("apply.progress_" + pr.stage, { done: pr.done, total: pr.total }))}</p><span class="bar"><span style="width:${pct}%"></span></span>`;
+    }
+    if (S.applyDone) body += `<p class="ok">${esc(S.applyDone)}</p>`;
+    const canGo = !A.blocked && A.moves && !A.conflicts.length && !running;
+    const last = A.last && A.last.status !== "undone" ? A.last : null;
+    body += `<div class="actions">
+      ${!A.blocked && A.moves ? `<button class="btn primary" id="apply-go" ${canGo ? "" : "disabled"}>${esc(t("apply.go"))}</button>` : ""}
+      ${last ? `<span class="muted last-run">${esc(t("apply.last", { when: last.created, n: last.moved }))}</span><button class="btn" id="undo" ${running ? "disabled" : ""}>${esc(t("apply.undo"))}</button>` : ""}
+      <button class="btn quiet" id="apply-close" ${running ? "disabled" : ""}>${esc(t("apply.close"))}</button></div>`;
+    return body;
+  }
+
+  function renderApplyCard() {
+    const card = $("#apply-card");
+    if (!card || !S.apply) return;
+    card.innerHTML = applyCard();
+    bindApply();
+  }
+
+  function bindApply() {
+    const close = $("#apply-close");
+    if (close) close.onclick = () => ((S.apply = null), (S.applyDone = null), renderReview());
+    const pick = $("#pick-backup");
+    if (pick)
+      pick.onclick = async () => {
+        const d = await call("pick_folder");
+        if (d) S.backupDest = d;
+        renderApplyCard();
+      };
+    const cb = $("#do-backup");
+    if (cb)
+      cb.onchange = async () => {
+        if (cb.checked && !S.backupDest) {
+          const d = await call("pick_folder");
+          S.backupDest = d || null;
+        } else if (!cb.checked) S.backupDest = null;
+        renderApplyCard();
+      };
+    const go = $("#apply-go");
+    if (go)
+      go.onclick = async () => {
+        if (!(await ask(t("apply.confirm", { clips: S.apply.clips, folders: S.apply.folders })))) return;
+        S.applyDone = null;
+        S.applyProgress = { stage: S.backupDest ? "backup" : "move", done: 0, total: 0 };
+        await call("start_apply", { backup_dest: S.backupDest });
+        renderApplyCard();
+      };
+    const undo = $("#undo");
+    if (undo)
+      undo.onclick = async () => {
+        if (!(await ask(t("apply.undo_q")))) return;
+        S.applyDone = null;
+        S.applyProgress = { stage: "undo", done: 0, total: 0 };
+        await call("start_undo");
+        renderApplyCard();
+      };
+  }
+
+  async function afterApplyJob(message) {
+    S.applyDone = message;
+    S.applyProgress = null;
+    S.review = await call("review");
+    S.apply = await call("apply_plan");
+    if (S.view === "review") renderReview();
   }
 
   function tile(cid) {
@@ -600,9 +707,16 @@
   // ---------------- events from the core ----------------
 
   HS.on((ev) => {
-    if (ev.type === "progress") {
+    if (ev.type === "progress" && ["backup", "move", "undo"].includes(ev.stage)) {
+      S.applyProgress = ev;
+      renderApplyCard();
+    } else if (ev.type === "progress") {
       setStage(ev.stage, "run", ev.done, ev.total);
       if (S.view === "analyze") updateStages();
+    } else if (ev.type === "job_done" && ev.name === "apply") {
+      afterApplyJob(t("apply.done", { moved: ev.result.moved }));
+    } else if (ev.type === "job_done" && ev.name === "undo") {
+      afterApplyJob(t("apply.undone", { n: ev.result.back }) + (ev.result.problems.length ? " " + ev.result.problems.join("; ") : ""));
     } else if (ev.type === "job_done" && ev.name === "scan") {
       ["scan", "sync", "frames"].forEach((s) => (S.stages[s] = { status: "done" }));
       S.scan = ev.result;
@@ -617,6 +731,10 @@
       S.review = null;
       if (S.view === "analyze") renderAnalyze();
       updateNav();
+    } else if (ev.type === "job_error" && (ev.name === "apply" || ev.name === "undo")) {
+      S.applyProgress = null;
+      toast(t("common.error") + ": " + ev.error, true);
+      call("apply_plan").then((a) => ((S.apply = a), renderApplyCard()));
     } else if (ev.type === "job_error") {
       const running = STAGES.find((s) => S.stages[s] && S.stages[s].status === "run");
       if (running) S.stages[running].status = "error";

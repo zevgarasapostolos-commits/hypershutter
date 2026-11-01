@@ -213,9 +213,11 @@ def apply(p: Project, st: Structure, pl: Plan, preset: dict, progress: Progress 
     if not pl.ok:
         raise RuntimeError("the plan has conflicts: " + "; ".join(pl.conflicts[:5]))
     root = Path(p.root)
-    j = {"version": 1, "id": datetime.now().strftime("%Y%m%d-%H%M%S"), "project": p.name, "root": str(root),
+    j = {"version": 1, "id": datetime.now().strftime("%Y%m%d-%H%M%S-%f"), "project": p.name, "root": str(root),
          "created": datetime.now().isoformat(timespec="seconds"), "status": "applying",
-         "moves": [asdict(m) for m in pl.moves], "dirs_created": [], "files_created": [], "files_replaced": []}
+         "moves": [asdict(m) for m in pl.moves], "dirs_created": [], "dirs_removed": [], "files_created": [],
+         "files_replaced": []}
+    earlier = [d for old in journals(p) if old["status"] == "applied" for d in old.get("dirs_created", [])]
     save_journal(p, j)                                         # before anything moves
 
     try:
@@ -241,9 +243,23 @@ def apply(p: Project, st: Structure, pl: Plan, preset: dict, progress: Progress 
         raise
 
     _sync_project(p, j)
+    for d in sorted(set(earlier) - set(pl.folders), key=lambda s: s.count("/"), reverse=True):
+        try:                                                # folders of an earlier run that are now empty
+            (root / d).rmdir()
+            j["dirs_removed"].append(d)
+        except OSError:
+            pass
     if extras:
+        written = []
         for rel, data in extras(p, st, preset):
             _write_generated(p, j, rel, data)
+            written.append(rel)
+        sheets_dir = preset["naming"]["contact_sheets_dir"]             # owned by HyperShutter: one sheet per folder
+        if (root / sheets_dir).is_dir():
+            for f in sorted((root / sheets_dir).iterdir()):
+                rel = f"{sheets_dir}/{f.name}"
+                if f.is_file() and rel not in written and not f.name.startswith("."):
+                    _set_aside(p, j, rel)                       # e.g. the sheet of a folder that is gone
     j["status"] = "applied"
     save_journal(p, j)
     return j
@@ -258,12 +274,17 @@ def _write_generated(p: Project, j: dict, rel: str, data: bytes) -> None:
             (root / parent).mkdir()
             j["dirs_created"].append(str(parent))
     if target.exists():
-        keep = Path(JOURNAL_DIR) / "replaced" / j["id"] / rel
-        (root / keep).parent.mkdir(parents=True, exist_ok=True)
-        os.rename(target, root / keep)
-        j["files_replaced"].append({"path": rel, "kept": str(keep)})
+        _set_aside(p, j, rel)
     target.write_bytes(data)
     j["files_created"].append(rel)
+
+
+def _set_aside(p: Project, j: dict, rel: str) -> None:
+    root = Path(p.root)
+    keep = Path(JOURNAL_DIR) / "replaced" / j["id"] / rel
+    (root / keep).parent.mkdir(parents=True, exist_ok=True)
+    os.rename(root / rel, root / keep)
+    j["files_replaced"].append({"path": rel, "kept": str(keep)})
 
 
 def _sync_project(p: Project, j: dict, undo: bool = False) -> None:
@@ -322,6 +343,8 @@ def undo(p: Project, journal: dict | None = None, progress: Progress | None = No
             (root / d).rmdir()                          # only if empty
         except OSError:
             pass
+    for d in j.get("dirs_removed", []):
+        (root / d).mkdir(parents=True, exist_ok=True)
     j["status"] = "undone" if not problems else "undone_with_problems"
     j["problems"] = problems
     save_journal(p, j)

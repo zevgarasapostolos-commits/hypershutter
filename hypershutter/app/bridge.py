@@ -16,14 +16,15 @@ from pathlib import Path
 from typing import Callable
 
 from hypershutter import __version__
-from hypershutter.core import checks, config, cost, describe, frames, pipeline, review, scan, store, sync
+from hypershutter.core import checks, config, cost, describe, execute, frames, index, pipeline, review, scan, store, sync
 from hypershutter.core.media import fmt_duration, fmt_offset
 from hypershutter.core.project import Project
 from hypershutter.core.structure import Structure
 
 EVENT_TYPES = ("baptism", "wedding", "event")
 SCRUB_FRAMES = 16                      # frames per clip sent to the Review grid for hover scrubbing
-STAGE = {"probe": "scan", "frames": "frames", "scene": "frames", "describe": "describe", "structure": "structure"}
+STAGE = {"probe": "scan", "frames": "frames", "scene": "frames", "describe": "describe", "structure": "structure",
+         "backup": "backup", "move": "move", "undo": "undo"}
 
 
 class Bridge:
@@ -279,6 +280,65 @@ class Bridge:
         p = self._require()
         self._st = review.reset(p)
         return self.review()
+
+
+    # ---------- Apply / Undo ----------
+
+    def apply_plan(self) -> dict:
+        """The dry run shown before anything moves."""
+        p = self._require()
+        st = self._structure()
+        blocked = None
+        try:
+            execute.check_allowed(p)
+        except PermissionError as e:
+            blocked = str(e)
+        pl = execute.plan(p, st)
+        clips = [m for m in pl.moves if m.kind == "clip"]
+        return {"blocked": blocked, "moves": len(pl.moves), "clips": len(clips),
+                "sidecars": len(pl.moves) - len(clips), "new_folders": len(pl.folders),
+                "folders": len({m.dst.split("/", 1)[0] for m in pl.moves}), "in_place": pl.in_place,
+                "unassigned": len(pl.unassigned), "conflicts": pl.conflicts,
+                "gb": round(sum(m.size for m in pl.moves) / 1e9, 2), "last": self._last_run()}
+
+    def _last_run(self) -> dict | None:
+        j = execute.last_applied(self._require())
+        if not j:
+            return None
+        return {"id": j["id"], "status": j["status"], "created": j["created"][:16].replace("T", " "),
+                "moved": sum(m["status"] == "moved" for m in j["moves"])}
+
+    def start_apply(self, backup_dest: str | None = None) -> dict:
+        p = self._require()
+        st = self._structure()
+        execute.check_allowed(p)
+
+        def work() -> dict:
+            pl = execute.plan(p, st)
+            if not pl.ok:
+                raise RuntimeError("; ".join(pl.conflicts[:3]))
+            result = {}
+            if backup_dest:
+                result["backup"] = execute.backup(p, Path(backup_dest), progress=self._progress)
+            j = execute.apply(p, st, pl, config.load_preset(p.event_type), progress=self._progress,
+                              extras=index.generated_files)
+            result.update(moved=sum(m["status"] == "moved" for m in j["moves"]), files=len(j["files_created"]),
+                          journal=j["id"], last=self._last_run())
+            return result
+
+        return self._start("apply", work)
+
+    def start_undo(self) -> dict:
+        p = self._require()
+        if not execute.last_applied(p):
+            raise RuntimeError("nothing to undo")
+
+        def work() -> dict:
+            j = execute.undo(p, progress=self._progress)
+            return {"status": j["status"], "back": sum(m["status"] == "undone" for m in j["moves"]),
+                    "problems": j.get("problems", [])}
+
+        return self._start("undo", work)
 
 
 def _osascript_folder() -> str | None:
