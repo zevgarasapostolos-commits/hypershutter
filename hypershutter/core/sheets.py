@@ -59,8 +59,9 @@ def image_tokens(w: int, h: int) -> int:
     return min(TOKEN_CAP, math.ceil(w * h / 750))
 
 
-def render(tiles: list[tuple[str, str]], layout: SheetLayout, out: Path) -> tuple[int, int]:
-    """tiles = [(image path, label)]. Letterboxed into 16:9 cells; returns the sheet size."""
+def render(tiles: list[tuple[str, str]], layout: SheetLayout, out: Path, for_model: bool = True) -> tuple[int, int]:
+    """tiles = [(image path, label)]. Letterboxed into 16:9 cells; returns the sheet size.
+    Sheets for the model must stay inside the vision limits; sheets for people need not."""
     tw, th = layout.tile()
     cols = min(layout.cols, len(tiles))
     rows = math.ceil(len(tiles) / layout.cols)
@@ -82,7 +83,8 @@ def render(tiles: list[tuple[str, str]], layout: SheetLayout, out: Path) -> tupl
             draw.rectangle([x, y, x + tw, y + th], outline=(80, 80, 80))
         tl = draw.textlength(label, font=font)
         draw.text((x + (tw - tl) / 2, y + th + 3), label, fill=LABEL_COLOUR, font=font)
-    assert w <= MAX_EDGE and h <= MAX_EDGE and w * h <= MAX_PIXELS, (w, h)
+    if for_model:
+        assert w <= MAX_EDGE and h <= MAX_EDGE and w * h <= MAX_PIXELS, (w, h)
     out.parent.mkdir(parents=True, exist_ok=True)
     sheet.save(out, "JPEG", quality=85)
     return w, h

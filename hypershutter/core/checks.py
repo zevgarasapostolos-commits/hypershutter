@@ -22,7 +22,7 @@ def _partial_hash(path: Path, size: int) -> str:
     return h.hexdigest()
 
 
-def _full_hash(path: Path) -> str:
+def full_hash(path: Path) -> str:
     h = xxhash.xxh3_128()
     with open(path, "rb") as f:
         while chunk := f.read(8 << 20):
@@ -65,7 +65,7 @@ def find_duplicates(root: Path, clips: list[Clip]) -> list[list[str]]:
                 continue
             by_full: dict[str, list[Clip]] = defaultdict(list)
             for c in cand:
-                by_full[_full_hash(root / c.rel)].append(c)
+                by_full[full_hash(root / c.rel)].append(c)
             groups.extend(sorted(c.id for c in g) for g in by_full.values() if len(g) > 1)
     return groups
 
