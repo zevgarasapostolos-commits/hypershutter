@@ -91,8 +91,32 @@ The first run had 29 misplaced clips, from three causes:
 - **Musicians vs dance (1 clip):** a musicians cutaway between dance takes. The model's notes
   already say it could go either way.
 
-### Caveat
+## Held-out check: 071 baptism (249 clips, 13 folders, never used for tuning)
 
-The s2 rules come from errors on this same event, so 97.8% is a training-set number. They
-still need checking on an organized event they were not tuned on: another baptism, then the
-25 July wedding.
+The s2 rules were tuned on 073, so 97.8% there is a training-set number. 071 is a different
+baptism on the same day, organized by the user into folders, and was never looked at while
+writing the rules.
+
+| Run | Model | Prompts | Matched acc. | Pairwise F1 | ARI | Folders | Boundary F1 | Cost |
+|---|---|---|---|---|---|---|---|---|
+| held-out | Opus 5.5 | d3/s2 | **95.6%** | **0.915** | **0.905** | 14 (13) | **0.938** | $6.02 |
+
+The clock was found automatically: camera A at +13:59:16, the same camera as in 073. There
+were no refusals.
+
+There were 11 misplaced clips:
+
+- **Portraits vs arrival (7):** the same ambiguous boundary as in 073.
+- **Baby photo shoot (3):** the model made a separate "photo shoot of the baby at the decor"
+  folder, while the user kept those clips with the portraits after the baptism. This is a
+  granularity choice.
+- **Long receiving-line take after the sacrament (1):** the preset sends it to «ΕΥΧΕΣ & ΚΕΡΑΣΜΑ»
+  and tells the user it can move to the ΡΟΗ. The model did exactly that and said so in its notes;
+  the user had it in the ΡΟΗ.
+
+Every ceremony folder (ΡΟΗ and B-ROLL of κατήχηση and μυστήριο), the drone, decor, details,
+exterior and interior folders are 100 % correct.
+
+Not usable as held-out events: 066, 067, 068 and 069. Their shot indexes list the clips, but
+only the drone footage is still on the T7. The camera footage was moved, and `eval` now stops
+before any API call in that case.

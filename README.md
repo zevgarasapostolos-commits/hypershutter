@@ -105,5 +105,6 @@ groupings with the user's own folders (details in [docs/m3](docs/m3-describe-str
 | Baptism, 267 clips | offline (time gaps only) | 46.1% | 0.290 | 0.177 | 7 (17) | $0 |
 | Baptism, 267 clips | Opus 5.5, first prompts | 89.1% | 0.872 | 0.862 | 20 (17) | $7.69 |
 | Baptism, 267 clips | Opus 5.5, rules s2 | **97.8%** | **0.963** | **0.960** | **17 (17)** | +$0.38 |
+| **Held-out baptism, 249 clips** | Opus 5.5, rules s2 | **95.6%** | **0.915** | **0.905** | 14 (13) | $6.02 |
 
-The s2 rules were tuned on this event; a held-out event is still to be evaluated.
+The s2 rules were tuned on the first baptism; the second one was never used for tuning.
