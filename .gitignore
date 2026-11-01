@@ -40,3 +40,4 @@ reference/
 
 # Sample sheets shown to the user (client footage)
 samples/
+.claude/

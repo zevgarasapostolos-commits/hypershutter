@@ -139,7 +139,7 @@ def cmd_frames(args) -> int:
     print(f"\n{len(got)} clips, {fmt_duration(footage)} of footage → {n_frames} frames "
           f"({n_scene} at scene changes), {n_sheets} sheets")
     print(f"time: frames {t1 - t0:.0f}s, sheets {t2 - t1:.0f}s (cached clips are instant)")
-    print("\nestimated cost to describe every clip (pass 1):")
+    print("\nestimated cost of both AI passes for every clip (described clips are free on re-runs):")
     for model, info in cost.MODELS.items():
         e = cost.estimate([len(f) for f in got.values()], model)
         print(f"  {info['label']:26} ~{e.input_tokens / 1e6:.2f}M in + {e.output_tokens / 1e3:.0f}K out tokens"
@@ -149,9 +149,10 @@ def cmd_frames(args) -> int:
 
 def _confirm(args):
     def ask(e: cost.Estimate) -> bool:
-        print(f"\nAbout to describe {e.clips} clips ({e.sheets} sheets, {e.frames} frames) with {e.model}: "
+        print(f"\nAbout to describe {e.clips} clips ({e.sheets} sheets, {e.frames} frames; {e.cached} already "
+              f"described) and build the structure with {e.model}: "
               f"~{e.input_tokens / 1e6:.2f}M input + {e.output_tokens / 1e3:.0f}K output tokens ≈ ${e.cost_usd:.2f}, "
-              f"~{e.minutes:.0f} min (already described clips are free).")
+              f"~{e.minutes:.0f} min.")
         if args.yes:
             return True
         return input("Continue? [y/N] ").strip().lower() in ("y", "yes", "ν", "ναι")
@@ -262,6 +263,12 @@ def cmd_key(args) -> int:
     return 0
 
 
+def cmd_app(args) -> int:
+    from hypershutter.app.main import run
+    run(browser=args.browser, port=args.port, debug=args.debug)
+    return 0
+
+
 def cmd_timeline(args) -> int:
     folder = Path(args.folder).expanduser()
     p = _load_or_scan(folder, rescan=False, workers=6)
@@ -318,6 +325,12 @@ def main(argv: list[str] | None = None) -> int:
     sp = sub.add_parser("key", help="store the Anthropic API key in the macOS Keychain")
     sp.add_argument("action", choices=["set", "status", "delete"], nargs="?", default="status")
     sp.set_defaults(func=cmd_key)
+
+    sp = sub.add_parser("app", help="open the HyperShutter window (Home, Scan & Analyze, Review)")
+    sp.add_argument("--browser", action="store_true", help="no window: print a local URL for a browser (development)")
+    sp.add_argument("--port", type=int, default=0)
+    sp.add_argument("--debug", action="store_true", help="enable the web inspector")
+    sp.set_defaults(func=cmd_app)
 
     sp = sub.add_parser("timeline", help="print every clip on the corrected timeline")
     sp.add_argument("folder"); sp.add_argument("--limit", type=int, default=0)

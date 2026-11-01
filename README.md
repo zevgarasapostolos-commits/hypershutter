@@ -7,12 +7,15 @@ event-specific category structure (numbered, Greeklish folder names, ΡΟΗ / B-
 after review moves everything into place with a full undo journal, a shot index and per-category
 contact sheets. It then prepares B-roll selections and Premiere sequences.
 
-> Status: **M3 — describe, structure & evaluation** (CLI). `scan`, `sync`, `timeline`, `frames`,
-> `structure` and `eval` work read-only; `apply`, `undo` and `premiere` are stubs.
+> Status: **M4 — app shell**. The window (`hypershutter app`) has Projects, Scan & Analyze and
+> Review; the CLI covers `scan`, `sync`, `timeline`, `frames`, `structure` and `eval`. Everything
+> is still read-only: `apply`, `undo` and `premiere` are stubs.
 
 ## Usage (so far)
 
 ```bash
+hypershutter app                                # the window: Projects → Scan & Analyze → Review
+hypershutter app --browser                      # same UI in a normal browser (development)
 hypershutter scan "/Volumes/T7/<event>/"        # clips, sidecars, devices, duplicate/corrupt checks
 hypershutter sync "/Volumes/T7/<event>/"        # clock offsets from shared audio
 hypershutter sync "/Volumes/T7/<event>/" --set A=+14:00 --manual-only   # manual override
@@ -69,9 +72,9 @@ python3.13 -m venv .venv
 
 | Path | Contents |
 |---|---|
-| `hypershutter/core/` | pipeline modules (config, greeklish so far) |
-| `hypershutter/app/` | pywebview bootstrap (M4) |
-| `ui/` | HTML/CSS/JS, `css/tokens.css`, `locales/en.json`, `locales/el.json` |
+| `hypershutter/core/` | pipeline: scan, checks, sync, frames, sheets, describe, structure, review, evaluate, pipeline |
+| `hypershutter/app/` | `main.py` (pywebview window), `server.py` (local server on 127.0.0.1 with a per-run token), `bridge.py` (the API every screen calls) |
+| `ui/` | plain HTML/CSS/JS: `css/tokens.css`, `css/app.css`, `js/`, `locales/en.json`, `locales/el.json` |
 | `presets/` | category **hints** per event type (never fixed lists) |
 | `docs/` | the user's workflows and findings |
 | `tests/` | pytest |

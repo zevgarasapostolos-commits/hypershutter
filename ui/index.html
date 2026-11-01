@@ -1,0 +1,40 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>HyperShutter</title>
+  <link rel="stylesheet" href="/ui/css/tokens.css">
+  <link rel="stylesheet" href="/ui/css/app.css">
+</head>
+<body>
+  <aside class="sidebar">
+    <div class="brand">HyperShutter</div>
+    <nav class="nav">
+      <button class="nav-item" data-view="home" data-i18n="nav.home"></button>
+      <button class="nav-item" data-view="analyze" data-i18n="nav.analyze"></button>
+      <button class="nav-item" data-view="review" data-i18n="nav.review"></button>
+    </nav>
+    <div class="sidebar-foot">
+      <div class="lang" role="group">
+        <button data-lang="en">EN</button><button data-lang="el">ΕΛ</button>
+      </div>
+      <div class="version" id="version"></div>
+    </div>
+  </aside>
+  <main id="view" class="view"></main>
+  <div id="toast" class="toast" role="status" hidden></div>
+  <div id="modal" class="modal" hidden>
+    <div class="modal-box">
+      <p id="modal-text"></p>
+      <div class="modal-actions">
+        <button class="btn" id="modal-cancel" data-i18n="common.cancel"></button>
+        <button class="btn primary" id="modal-ok" data-i18n="common.ok"></button>
+      </div>
+    </div>
+  </div>
+  <script src="/ui/js/api.js"></script>
+  <script src="/ui/js/i18n.js"></script>
+  <script src="/ui/js/app.js"></script>
+</body>
+</html>

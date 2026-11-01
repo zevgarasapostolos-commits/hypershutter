@@ -165,6 +165,12 @@ def _cache_file(p: Project, clip: Clip, model: str, fs: FrameSettings) -> Path:
     return config.cache_dir("describe", store.project_id(Path(p.root))) / f"{tag}.json"
 
 
+def cached(p: Project, clip: Clip, model: str, fs: FrameSettings) -> dict | None:
+    """A clip's description if pass 1 already ran with these settings (never calls the API)."""
+    cf = _cache_file(p, clip, model, fs)
+    return json.loads(cf.read_text()) if cf.exists() else None
+
+
 def describe_clip(client, p: Project, clip: Clip, frames: list[Frame], fs: FrameSettings, model: str,
                   effort: str, event_type: str, usage: Usage) -> dict:
     cf = _cache_file(p, clip, model, fs)

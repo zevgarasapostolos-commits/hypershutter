@@ -51,8 +51,11 @@ def prepare(p: Project, opts: AnalyzeOptions, progress: Progress | None = None) 
     return frames.extract_all(Path(p.root), video, fs, progress=progress)
 
 
-def estimate(by_clip: dict[str, list[frames.Frame]], model: str) -> cost.Estimate:
-    return cost.estimate([len(f) for f in by_clip.values()], model)
+def estimate(p: Project, by_clip: dict[str, list[frames.Frame]], model: str, interval: float = 2.0) -> cost.Estimate:
+    """Cost of both passes; clips already described with this model and these frames are free."""
+    fs = frames.FrameSettings(interval=interval)
+    todo = [len(f) for cid, f in by_clip.items() if describe.cached(p, p.clips[cid], model, fs) is None]
+    return cost.estimate(todo, model, total_clips=len(by_clip))
 
 
 def run(p: Project, opts: AnalyzeOptions, by_clip: dict[str, list[frames.Frame]],
@@ -83,6 +86,6 @@ def run(p: Project, opts: AnalyzeOptions, by_clip: dict[str, list[frames.Frame]]
 def analyze(p: Project, opts: AnalyzeOptions, confirm: Callable[[cost.Estimate], bool] = lambda e: True,
             progress: Progress | None = None) -> AnalyzeResult | None:
     by_clip = prepare(p, opts, progress)
-    if not opts.offline and not confirm(estimate(by_clip, opts.model)):
+    if not opts.offline and not confirm(estimate(p, by_clip, opts.model, opts.interval)):
         return None
     return run(p, opts, by_clip, progress)
