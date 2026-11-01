@@ -87,7 +87,8 @@ def metrics(truth: dict[str, str], pred: dict[str, str], order: list[str]) -> di
     pp = tp / pred_pairs if pred_pairs else 0.0
     pr = tp / true_pairs if true_pairs else 0.0
     expected = pred_pairs * true_pairs / total if total else 0.0
-    ari = (tp - expected) / (0.5 * (pred_pairs + true_pairs) - expected) if total and pred_pairs + true_pairs else 0.0
+    denom = 0.5 * (pred_pairs + true_pairs) - expected
+    ari = (tp - expected) / denom if denom else (1.0 if pred_pairs == true_pairs == tp else 0.0)
 
     errors = [{"clip": c, "truth": truth[c], "pred": pred[c], "pred_as": match.get(pred[c])}
               for c in ids if match.get(pred[c]) != truth[c]]

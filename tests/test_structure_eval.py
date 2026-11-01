@@ -109,3 +109,8 @@ def test_broll_without_its_flow_has_no_letter():
             a["part"] = "p4"                                   # nothing left in the ΡΟΗ
     st = structure.finalize(p, raw, BLACK, config.load_preset("baptism"))
     assert st.folder_of("C6") == "04 KATIXISI - B-ROLL"
+
+
+def test_metrics_single_group_does_not_divide_by_zero():
+    m = evaluate.metrics({"a": "X", "b": "X"}, {"a": "p", "b": "p"}, ["a", "b"])
+    assert m["ari"] == 1.0 and m["matched_accuracy"] == 1.0

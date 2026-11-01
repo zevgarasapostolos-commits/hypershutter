@@ -204,8 +204,12 @@ def cmd_eval(args) -> int:
     folder = Path(args.folder).expanduser()
     p = _synced(folder)
     if args.index:
-        truth = evaluate.truth_from_index(Path(args.index).expanduser())
-        truth = {cid: truth[cid.split("~")[0]] for cid in p.clips if cid.split("~")[0] in truth}
+        listed = evaluate.truth_from_index(Path(args.index).expanduser())
+        truth = {cid: listed[cid.split("~")[0]] for cid in p.clips if cid.split("~")[0] in listed}
+        if len(truth) < 0.8 * len(listed):                 # before any API call
+            print(f"the index lists {len(listed)} clips but only {len(truth)} of them are in this folder "
+                  "(footage moved or archived?); not evaluating")
+            return 1
     else:
         truth = evaluate.truth_from_folders({c.id: c.rel for c in p.clips.values() if c.kind == "video"})
     if not truth:
