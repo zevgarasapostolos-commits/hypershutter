@@ -301,7 +301,7 @@ class Bridge:
         return {"blocked": blocked, "moves": len(pl.moves), "clips": len(clips),
                 "sidecars": len(pl.moves) - len(clips), "new_folders": len(pl.folders),
                 "folders": len({m.dst.split("/", 1)[0] for m in pl.moves}), "in_place": pl.in_place,
-                "unassigned": len(pl.unassigned), "conflicts": pl.conflicts,
+                "unassigned": len(pl.unassigned), "conflicts": pl.conflicts, "edited": pl.edited,
                 "gb": round(sum(m.size for m in pl.moves) / 1e9, 2), "last": self._last_run()}
 
     def _last_run(self) -> dict | None:
@@ -311,10 +311,12 @@ class Bridge:
         return {"id": j["id"], "status": j["status"], "created": j["created"][:16].replace("T", " "),
                 "moved": sum(m["status"] == "moved" for m in j["moves"])}
 
-    def start_apply(self, backup_dest: str | None = None) -> dict:
+    def start_apply(self, backup_dest: str | None = None, relink_ok: bool = False) -> dict:
         p = self._require()
         st = self._structure()
         execute.check_allowed(p)
+        if execute.plan(p, st).edited and not relink_ok:
+            raise RuntimeError("this event already has Premiere files that use these clips: confirm relinking first")
 
         def work() -> dict:
             pl = execute.plan(p, st)

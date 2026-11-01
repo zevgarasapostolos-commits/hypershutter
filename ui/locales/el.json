@@ -155,5 +155,7 @@
   "edit.group.mum_baby": "Μαμά / μωρό",
   "edit.group.crowd": "Κόσμος / πλήθος",
   "edit.group.faces_family": "Πρόσωπα / οικογένεια",
-  "edit.group.details": "Λεπτομέρειες"
+  "edit.group.details": "Λεπτομέρειες",
+  "apply.edited": "Το event είναι ήδη μονταρισμένο: τα {files} χρησιμοποιούν αυτά τα κλιπ. Η μετακίνηση θα σπάσει τα links. Μετά τη μετακίνηση κάνε relink στο Premiere: Link Media → Locate → ο φάκελος του event, με Search subfolders και Relink others automatically.",
+  "apply.relink_ok": "Θα κάνω relink στο Premiere μετά τη μετακίνηση"
 }

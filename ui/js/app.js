@@ -486,6 +486,9 @@
       body += `<p>${esc(t("apply.summary", { clips: A.clips, sidecars: A.sidecars, gb: A.gb, folders: A.folders, new: A.new_folders, in_place: A.in_place }))}</p>
         <p class="hint">${esc(t("apply.safe"))}</p>`;
       if (A.unassigned) body += `<p class="muted">${esc(t("apply.unassigned", { n: A.unassigned }))}</p>`;
+      if (A.edited && A.edited.length)
+        body += `<p class="warn">${esc(t("apply.edited", { files: A.edited.join(", ") }))}</p>
+          <label class="toggle"><input type="checkbox" id="relink-ok" ${S.relinkOk ? "checked" : ""}> ${esc(t("apply.relink_ok"))}</label>`;
       if (A.conflicts.length)
         body += `<p class="warn">${esc(t("apply.conflicts"))}</p><ul class="flag-list">${A.conflicts.map((c) => `<li>${esc(c)}</li>`).join("")}</ul>`;
       body += `<div class="backup-row"><label class="toggle"><input type="checkbox" id="do-backup" ${S.backupDest ? "checked" : ""}> ${esc(t("apply.backup"))}</label>
@@ -496,7 +499,7 @@
       body += `<p class="progress-line">${esc(t("apply.progress_" + pr.stage, { done: pr.done, total: pr.total }))}</p><span class="bar"><span style="width:${pct}%"></span></span>`;
     }
     if (S.applyDone) body += `<p class="ok">${esc(S.applyDone)}</p>`;
-    const canGo = !A.blocked && A.moves && !A.conflicts.length && !running;
+    const canGo = !A.blocked && A.moves && !A.conflicts.length && !running && (!(A.edited && A.edited.length) || S.relinkOk);
     const last = A.last && A.last.status !== "undone" ? A.last : null;
     body += `<div class="actions">
       ${!A.blocked && A.moves ? `<button class="btn primary" id="apply-go" ${canGo ? "" : "disabled"}>${esc(t("apply.go"))}</button>` : ""}
@@ -522,6 +525,8 @@
         if (d) S.backupDest = d;
         renderApplyCard();
       };
+    const rl = $("#relink-ok");
+    if (rl) rl.onchange = () => ((S.relinkOk = rl.checked), renderApplyCard());
     const cb = $("#do-backup");
     if (cb)
       cb.onchange = async () => {
@@ -537,7 +542,7 @@
         if (!(await ask(t("apply.confirm", { clips: S.apply.clips, folders: S.apply.folders })))) return;
         S.applyDone = null;
         S.applyProgress = { stage: S.backupDest ? "backup" : "move", done: 0, total: 0 };
-        await call("start_apply", { backup_dest: S.backupDest });
+        await call("start_apply", { backup_dest: S.backupDest, relink_ok: !!S.relinkOk });
         renderApplyCard();
       };
     const undo = $("#undo");

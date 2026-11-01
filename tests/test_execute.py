@@ -197,3 +197,11 @@ def test_reapply_after_an_edit_moves_only_the_change_and_undoes_in_order(event):
     execute.undo(p)                                                              # then the first
     rest = {k: v for k, v in _snapshot(root).items() if k != "00 CONTACT SHEETS/02.jpg"}   # made by the test
     assert rest == before
+
+
+def test_edited_project_is_reported(event):
+    p, st = event
+    root = Path(p.root)
+    (root / "075 ροή.xml").write_text("<xmeml><pathurl>file://localhost/x/cam%20apos/C0001.MP4</pathurl></xmeml>")
+    (root / "notes.xml").write_text("<x>nothing here</x>")
+    assert execute.plan(p, st).edited == ["075 ροή.xml"]

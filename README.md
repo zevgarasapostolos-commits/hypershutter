@@ -7,9 +7,9 @@ event-specific category structure (numbered, Greeklish folder names, ΡΟΗ / B-
 after review moves everything into place with a full undo journal, a shot index and per-category
 contact sheets. It then prepares B-roll selections and Premiere sequences.
 
-> Status: **M5 — apply & undo**. The window (`hypershutter app`) has Projects, Scan & Analyze and
-> Review with Apply / Undo; the CLI covers `scan`, `sync`, `timeline`, `frames`, `structure`, `eval`,
-> `apply` and `undo`. `premiere` (M6) is a stub.
+> Status: **M6 — edit prep** (baptism). The window (`hypershutter app`) has Projects, Scan & Analyze,
+> Review with Apply / Undo, and Edit prep (B-roll lists, highlights + ροή as Premiere XML with previews).
+> Wedding-specific rules are pending the user's instructions.
 
 ## Usage (so far)
 
@@ -27,6 +27,8 @@ hypershutter eval "/Volumes/T7/<organized event>/"   # accuracy against the user
 hypershutter apply "/Volumes/T7/<event>/"       # dry run: what would move where
 hypershutter apply "/Volumes/T7/<event>/" --apply [--backup /Volumes/Backup]   # move (journaled)
 hypershutter undo "/Volumes/T7/<event>/"        # every file back to its exact original path
+hypershutter broll "/Volumes/T7/<event>/"       # B-roll lists per ceremony, strongest first
+hypershutter premiere "/Volumes/T7/<event>/"    # highlights + ροή Premiere XML and previews
 ```
 
 The AI model defaults to Claude Opus 5.5 (`--model claude-sonnet-5-5` or `claude-haiku-5-5` are
@@ -75,7 +77,7 @@ python3.13 -m venv .venv
 
 | Path | Contents |
 |---|---|
-| `hypershutter/core/` | pipeline: scan, checks, sync, frames, sheets, describe, structure, review, execute (apply/undo/backup), index, evaluate, pipeline |
+| `hypershutter/core/` | pipeline: scan, checks, sync, frames, sheets, describe, structure, review, execute (apply/undo/backup), index, edit (B-roll, highlights, ροή), music, xmeml, preview, premiere, evaluate, pipeline |
 | `hypershutter/app/` | `main.py` (pywebview window), `server.py` (local server on 127.0.0.1 with a per-run token), `bridge.py` (the API every screen calls) |
 | `ui/` | plain HTML/CSS/JS: `css/tokens.css`, `css/app.css`, `js/`, `locales/en.json`, `locales/el.json` |
 | `presets/` | category **hints** per event type (never fixed lists) |
@@ -91,6 +93,7 @@ python3.13 -m venv .venv
 - [docs/m2-frames.md](docs/m2-frames.md): frame extraction benchmark, contact sheet sizing, cost estimate
 - [docs/m3-describe-structure.md](docs/m3-describe-structure.md): the two AI passes, validation rules, evaluation
 - [docs/m5-apply.md](docs/m5-apply.md): plan, write-ahead journal, move, undo, backup, index, contact sheets
+- [docs/m6-edit.md](docs/m6-edit.md): B-roll lists, highlights and ροή rules, Premiere XML, previews
 
 ## Accuracy
 

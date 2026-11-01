@@ -155,5 +155,7 @@
   "edit.group.mum_baby": "Mum / baby",
   "edit.group.crowd": "Crowd",
   "edit.group.faces_family": "Faces / family",
-  "edit.group.details": "Details"
+  "edit.group.details": "Details",
+  "apply.edited": "This event is already edited: {files} use these clips. Moving breaks their links. After the move, relink in Premiere: Link Media → Locate → the event folder, tick Search subfolders and Relink others automatically.",
+  "apply.relink_ok": "I will relink in Premiere after the move"
 }

@@ -12,6 +12,7 @@ Safety rules:
 
 from __future__ import annotations
 
+import gzip
 import json
 import os
 import re
@@ -54,6 +55,7 @@ class Plan:
     in_place: int = 0
     conflicts: list[str] = field(default_factory=list)
     unassigned: list[str] = field(default_factory=list)    # clips that stay where they are
+    edited: list[str] = field(default_factory=list)        # Premiere projects / XMLs that point at the clips
 
     @property
     def ok(self) -> bool:
@@ -150,6 +152,7 @@ def plan(p: Project, st: Structure, rename: str | None = None) -> Plan:
                 pl.conflicts.append(f"{dst}: already exists, will not overwrite")
                 continue
             pl.moves.append(Move(rel, dst, cid, kind, src_path.stat().st_size))
+    pl.edited = edited_projects(root, {os.path.basename(m.src) for m in pl.moves if m.kind == "clip"})
     for folder in sorted({m.dst.split("/", 1)[0] for m in pl.moves}):
         target = root / folder
         if target.exists() and not target.is_dir():
@@ -157,6 +160,24 @@ def plan(p: Project, st: Structure, rename: str | None = None) -> Plan:
         elif not target.exists():
             pl.folders.append(folder)
     return pl
+
+
+def edited_projects(root: Path, names: set[str]) -> list[str]:
+    """Premiere projects and exported XMLs in the event root that use clips about to move: moving
+    breaks their links, so the videographer must agree and relink (docs/workflow-organizing.md §6)."""
+    found = []
+    for f in sorted(root.iterdir()):
+        if f.name.startswith(".") or not f.is_file() or f.suffix.lower() not in (".prproj", ".xml"):
+            continue
+        try:
+            data = gzip.open(f, "rt", errors="ignore").read() if f.suffix.lower() == ".prproj" else ""
+        except OSError:
+            data = ""
+        if not data:
+            data = f.read_text(errors="ignore")
+        if any(n in data for n in names):
+            found.append(f.name)
+    return found
 
 
 # ---------------- journal ----------------

@@ -274,7 +274,13 @@ def cmd_apply(args) -> int:
         print(f"  {name:50} {n:4} clips")
     for c in pl.conflicts:
         print(f"  conflict: {c}")
+    if pl.edited:
+        print(f"  edited already: {', '.join(pl.edited)} use these clips; after the move relink in Premiere "
+              "(Link Media → Locate → the event folder, Search subfolders + Relink others automatically)")
     if not pl.ok:
+        return 1
+    if args.apply and pl.edited and not args.relink:
+        print("refused: add --relink to confirm you will relink those Premiere files after the move")
         return 1
     if not args.apply:
         print("\ndry run: nothing moved. Add --apply to move the files (undo with `hypershutter undo`).")
@@ -432,6 +438,7 @@ def main(argv: list[str] | None = None) -> int:
     sp.add_argument("--backup", metavar="DIR", help="copy and verify every file to DIR first")
     sp.add_argument("--rename", metavar="PATTERN", help="rename files, e.g. '{num}_{n:03d}_{name}' (off by default)")
     sp.add_argument("--force", action="store_true", help="allow an event that looks organized by hand")
+    sp.add_argument("--relink", action="store_true", help="the event has Premiere files: I will relink after the move")
     sp.set_defaults(func=cmd_apply)
 
     sp = sub.add_parser("undo", help="move every file of the last apply back to where it was")
