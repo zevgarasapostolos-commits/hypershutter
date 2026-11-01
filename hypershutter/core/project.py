@@ -20,11 +20,15 @@ class Project:
     orphans: list[str] = field(default_factory=list)     # sidecars with no clip
     scanned_at: str = ""
     synced_at: str = ""
+    event_type: str = "baptism"
+    event_name: str = ""                                 # shown in the index only, never sent to the AI
+    schedule: str = ""                                   # optional day schedule, a hint for pass 2
 
     def to_json(self) -> dict:
         from dataclasses import asdict
         return {
             "root": self.root, "name": self.name, "scanned_at": self.scanned_at, "synced_at": self.synced_at,
+            "event_type": self.event_type, "event_name": self.event_name, "schedule": self.schedule,
             "ignored": self.ignored, "orphans": self.orphans,
             "clips": [asdict(c) for c in self.clips.values()],
             "devices": [asdict(d) for d in self.devices.values()],
@@ -33,7 +37,9 @@ class Project:
     @classmethod
     def from_json(cls, d: dict) -> "Project":
         p = cls(root=d["root"], name=d["name"], ignored=d.get("ignored", []), orphans=d.get("orphans", []),
-                scanned_at=d.get("scanned_at", ""), synced_at=d.get("synced_at", ""))
+                scanned_at=d.get("scanned_at", ""), synced_at=d.get("synced_at", ""),
+                event_type=d.get("event_type", "baptism"), event_name=d.get("event_name", ""),
+                schedule=d.get("schedule", ""))
         p.clips = {c["id"]: Clip(**c) for c in d.get("clips", [])}
         p.devices = {x["id"]: Device(**x) for x in d.get("devices", [])}
         return p

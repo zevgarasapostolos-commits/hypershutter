@@ -97,6 +97,7 @@ class Category:
     description_el: str
     kind: str
     clips: list[str] = field(default_factory=list)
+    parent: str = ""                           # key of the folder this one is the "a" part of (08 -> 08a)
 
 
 @dataclass
@@ -108,9 +109,17 @@ class Structure:
     notes: str = ""
     source: str = "ai"                          # ai | offline
     usage: dict = field(default_factory=dict)
+    stars: list[str] = field(default_factory=list)
+    edited: bool = False                        # the user changed it in Review
 
     def to_json(self) -> dict:
         return asdict(self)
+
+    @classmethod
+    def from_json(cls, d: dict) -> "Structure":
+        return cls([Category(**c) for c in d["categories"]], d["assignment"], d["confidence"], d["needs_review"],
+                   d.get("notes", ""), d.get("source", "ai"), d.get("usage", {}), d.get("stars", []),
+                   d.get("edited", False))
 
     def folder_of(self, clip_id: str) -> str:
         key = self.assignment.get(clip_id)
@@ -269,7 +278,8 @@ def finalize(p: Project, raw: dict, descriptions: dict[str, dict], preset: dict,
                 k = by_ceremony[g][kind]
                 label = f"{g}{sep}{suffix}"
                 cats.append(Category(k, n, sub, label, folder_name(n, label, sub, style),
-                                     parts[k].get("description_el", ""), kind))
+                                     parts[k].get("description_el", ""), kind,
+                                     parent=by_ceremony[g][FLOW] if kind == BROLL else ""))
         else:
             x = parts[g]
             cats.append(Category(g, n, "", x["label_el"], folder_name(n, x["label_el"], "", style),

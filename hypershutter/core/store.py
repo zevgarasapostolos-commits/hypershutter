@@ -54,6 +54,12 @@ def save_project(root: Path, data: dict) -> None:
                    (project_id(root), root.name, str(root), json.dumps(data, ensure_ascii=False), time.time()))
 
 
+def recent_projects(limit: int = 12) -> list[dict]:
+    with connect() as db:
+        rows = db.execute("SELECT name, root, updated FROM projects ORDER BY updated DESC LIMIT ?", (limit,)).fetchall()
+    return [{"name": n, "root": r, "updated": u} for n, r, u in rows]
+
+
 def load_project(root: Path) -> dict | None:
     with connect() as db:
         row = db.execute("SELECT data FROM projects WHERE id=?", (project_id(root),)).fetchone()
