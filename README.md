@@ -7,7 +7,20 @@ event-specific category structure (numbered, Greeklish folder names, ΡΟΗ / B-
 after review moves everything into place with a full undo journal, a shot index and per-category
 contact sheets. It then prepares B-roll selections and Premiere sequences.
 
-> Status: **M0 — setup**. Nothing is functional yet beyond `hypershutter doctor`.
+> Status: **M1 — scan, clock sync & checks** (CLI). `scan`, `sync` and `timeline` work read-only;
+> later stages are stubs.
+
+## Usage (so far)
+
+```bash
+hypershutter scan "/Volumes/T7/<event>/"        # clips, sidecars, devices, duplicate/corrupt checks
+hypershutter sync "/Volumes/T7/<event>/"        # clock offsets from shared audio
+hypershutter sync "/Volumes/T7/<event>/" --set A=+14:00 --manual-only   # manual override
+hypershutter timeline "/Volumes/T7/<event>/"    # every clip on the corrected timeline
+```
+
+Clock offsets are stated like the shot index states them: relative to what the camera clock
+wrote (e.g. "camera A is +14:00"). Each device gets an anchor/auto/manual/unresolved status.
 
 ## Safety rules
 
