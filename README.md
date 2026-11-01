@@ -7,8 +7,8 @@ event-specific category structure (numbered, Greeklish folder names, ΡΟΗ / B-
 after review moves everything into place with a full undo journal, a shot index and per-category
 contact sheets. It then prepares B-roll selections and Premiere sequences.
 
-> Status: **M2 — frames & contact sheets** (CLI). `scan`, `sync`, `timeline` and `frames` work
-> read-only; later stages are stubs.
+> Status: **M3 — describe, structure & evaluation** (CLI). `scan`, `sync`, `timeline`, `frames`,
+> `structure` and `eval` work read-only; `apply`, `undo` and `premiere` are stubs.
 
 ## Usage (so far)
 
@@ -18,7 +18,13 @@ hypershutter sync "/Volumes/T7/<event>/"        # clock offsets from shared audi
 hypershutter sync "/Volumes/T7/<event>/" --set A=+14:00 --manual-only   # manual override
 hypershutter timeline "/Volumes/T7/<event>/"    # every clip on the corrected timeline
 hypershutter frames "/Volumes/T7/<event>/"      # frames (1 per 2 s + scene changes), contact sheets, cost estimate
+hypershutter key set                            # store the Anthropic API key in the macOS Keychain
+hypershutter structure "/Volumes/T7/<event>/"   # pass 1 (describe) + pass 2 (structure), dry run
+hypershutter eval "/Volumes/T7/<organized event>/"   # accuracy against the user's own folders
 ```
+
+The AI model defaults to Claude Opus 5.5 (`--model claude-sonnet-5-5` or `claude-haiku-5-5` are
+cheaper). A cost and time estimate is shown before any API call.
 
 Clock offsets are stated like the shot index states them: relative to what the camera clock
 wrote (e.g. "camera A is +14:00"). Each device gets an anchor/auto/manual/unresolved status.
@@ -77,9 +83,17 @@ python3.13 -m venv .venv
 - [docs/m0-findings.md](docs/m0-findings.md): cameras, clocks, formats, evaluation targets
 - [docs/m1-clock-sync.md](docs/m1-clock-sync.md): scan, devices, clock sync (NCC vs GCC-PHAT), results
 - [docs/m2-frames.md](docs/m2-frames.md): frame extraction benchmark, contact sheet sizing, cost estimate
+- [docs/m3-describe-structure.md](docs/m3-describe-structure.md): the two AI passes, validation rules, evaluation
 
 ## Accuracy
 
-Evaluation mode (M3) runs the pipeline read-only on already-organized events and reports
-grouping metrics (Hungarian-matched accuracy, pairwise F1, Adjusted Rand Index, boundary
-alignment, clock-offset error, cost, runtime). Results will be published here.
+Evaluation mode runs the pipeline read-only on an already-organized event and compares the
+groupings with the user's own folders (details in [docs/m3](docs/m3-describe-structure.md)).
+
+| Event | Run | Matched accuracy | Pairwise F1 | ARI | Folders (truth) | Cost |
+|---|---|---|---|---|---|---|
+| Baptism, 267 clips | offline (time gaps only) | 46.1% | 0.290 | 0.177 | 7 (17) | $0 |
+| Baptism, 267 clips | Opus 5.5, first prompts | 89.1% | 0.872 | 0.862 | 20 (17) | $7.69 |
+| Baptism, 267 clips | Opus 5.5, rules s2 | **97.8%** | **0.963** | **0.960** | **17 (17)** | +$0.38 |
+
+The s2 rules were tuned on this event; a held-out event is still to be evaluated.
