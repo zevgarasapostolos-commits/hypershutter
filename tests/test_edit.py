@@ -156,3 +156,18 @@ def test_preview_picture_puts_v2_over_v1(tmp_path):
     v2 = Item(m, 40, 60, 50.0)
     seq = Sequence("t", video=[[v1], [v2]])
     assert [(it is v2, a, b) for it, a, b in preview.picture(seq)] == [(False, 0, 40), (True, 40, 60), (False, 60, 100)]
+
+
+def test_preview_audio_track_is_laid_out_exactly(tmp_path):
+    import subprocess
+
+    from hypershutter.core import config
+    tone = tmp_path / "tone.wav"
+    subprocess.run([config.find_tool("ffmpeg"), "-v", "error", "-y", "-f", "lavfi", "-i", "sine=f=440:d=20",
+                    "-ac", "2", str(tone)], check=True)
+    m = Media(str(tone), 20.0, has_video=False, audio_channels=2)
+    seq = Sequence("t", video=[[]], audio=[[Item(m, 25 * 600, 25 * 610, 1.0), Item(m, 25 * 1200, 25 * 1205, 0.0, fade_out=25)]])
+    out = preview._mix(config.find_tool("ffmpeg"), seq, 1210.0, tmp_path / "mix.wav", tmp_path)
+    d = subprocess.run(["ffprobe", "-v", "error", "-show_entries", "format=duration", "-of", "csv=p=0", str(out)],
+                       capture_output=True, text=True).stdout
+    assert abs(float(d) - 1210.0) < 0.05                       # long silent gaps are kept (amix+adelay lost them)
