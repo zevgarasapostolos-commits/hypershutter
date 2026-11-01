@@ -13,8 +13,8 @@ naming:
   separator: " — "                 # -> " - " on disk
   unusable: { number: 99, label: "ΑΧΡΗΣΤΑ" }   # only if there are any
   contact_sheets_dir: "00 CONTACT SHEETS"
-  index_label: "ΕΥΡΕΤΗΡΙΟ ΠΛΑΝΩΝ"  # -> "00 EVRETIRIO PLANON.md" (pending user confirmation)
-  greeklish_style:                 # pending user confirmation, see core/greeklish.py
+  index_label: "ΕΥΡΕΤΗΡΙΟ ΠΛΑΝΩΝ"  # -> "00 EVRETIRIO PLANON.md"
+  greeklish_style:                 # confirmed by the user 2026-11-01, see core/greeklish.py
     upsilon: "Y"
     au_eu: "phonetic"
     xi: "KS"

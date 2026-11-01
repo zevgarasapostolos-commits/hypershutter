@@ -10,6 +10,7 @@ from __future__ import annotations
 import re
 import unicodedata
 
+# The user confirmed these defaults on 2026-11-01.
 DEFAULT_STYLE = {
     "upsilon": "Y",       # Υ alone: "Y" (MYSTIRIO) or "I" (MISTIRIO)
     "au_eu": "phonetic",  # ΑΥ/ΕΥ: "phonetic" (EVRETIRIO, AFTOS) or "literal" (EYRETIRIO, AYTOS)
