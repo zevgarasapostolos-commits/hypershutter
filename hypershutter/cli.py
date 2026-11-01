@@ -199,7 +199,7 @@ def cmd_eval(args) -> int:
     import time as _time
     from datetime import datetime as _dt
 
-    from hypershutter.core import evaluate, pipeline
+    from hypershutter.core import describe, evaluate, pipeline, structure
     folder = Path(args.folder).expanduser()
     p = _synced(folder)
     if args.index:
@@ -224,7 +224,7 @@ def cmd_eval(args) -> int:
     clocks = ", ".join(f"{d.id} {fmt_offset(d.raw_offset)} ({d.drift_status})" for d in p.devices.values()
                        if d.kind == "camera")
     run = {"when": _dt.now().isoformat(timespec="minutes"), "model": args.model, "effort_describe": args.effort_describe,
-           "effort_structure": args.effort_structure, "interval": args.interval, "prompt": "d3/s1",
+           "effort_structure": args.effort_structure, "interval": args.interval, "prompt": f"{describe.PROMPT_VERSION}/{structure.PROMPT_VERSION}",
            "clocks": clocks, "cost": res.cost(), "refusals": res.usage.refusals if res.usage else 0,
            "describe_s": res.usage.wall if res.usage else 0,
            "structure_s": st.usage.get("seconds", 0) if st.usage else 0, "total_s": round(_time.time() - t0)}

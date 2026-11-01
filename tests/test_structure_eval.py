@@ -43,9 +43,12 @@ def _raw(p):
             "assignments": [{"clip": idx[c], "part": k, "confidence": conf.get(c, 0.9)} for c, k in a.items()]}
 
 
+BLACK = {"C9": {"quality_issues": ["black"], "usable": False, "people": []}}
+
+
 def test_finalize_numbers_names_and_fixes():
     p = _project(SPEC)
-    st = structure.finalize(p, _raw(p), {}, config.load_preset("baptism"))
+    st = structure.finalize(p, _raw(p), BLACK, config.load_preset("baptism"))
     folders = {c: st.folder_of(c) for c in p.clips}
     assert folders["C1"] == folders["C3"] == folders["C2"] == "01 STOLISMOS & CANDY BAR"   # outlier smoothed
     assert folders["D1"] == "02 DRONE"                                                     # drone numbered at its time
@@ -54,6 +57,16 @@ def test_finalize_numbers_names_and_fixes():
     assert folders["C8"] == folders["B1"] == "04a KATIXISI - B-ROLL"                        # short clip out of ΡΟΗ
     assert folders["C9"] == "99 AXRISTA"
     assert sorted(st.assignment) == sorted(p.clips)                                         # every clip once
+
+
+def test_unusable_only_without_picture():
+    p = _project(SPEC)
+    blurry = {"C9": {"quality_issues": ["blurry", "accidental"], "usable": False, "people": ["guests"]}}
+    st = structure.finalize(p, _raw(p), blurry, config.load_preset("baptism"))
+    assert st.folder_of("C9") == st.folder_of("C8") and not any(c.number == 99 for c in st.categories)
+    assert "C9" in st.needs_review
+    floor = {"C9": {"quality_issues": ["floor_or_ground"], "usable": False, "people": []}}
+    assert structure.finalize(p, _raw(p), floor, config.load_preset("baptism")).folder_of("C9") == "99 AXRISTA"
 
 
 def test_offline_segments_by_time_gaps():

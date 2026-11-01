@@ -19,9 +19,11 @@ from hypershutter.core.media import Clip, fmt_duration
 from hypershutter.core.project import Project
 
 FLOW, BROLL, NORMAL, DRONE, UNUSABLE = "ceremony_flow", "ceremony_broll", "normal", "drone", "unusable"
+PROMPT_VERSION = "s2"
 REVIEW_BELOW = 0.6
 FLOW_MIN_S = 45.0                    # a ΡΟΗ master is a long main-camera take
 BROLL_MAX_IN_FLOW_S = 30.0
+NOTHING_SHOWN = {"floor_or_ground", "overexposed", "dark"}   # with nobody in frame: no picture of the event
 
 SCHEMA = {
     "type": "object",
@@ -56,15 +58,25 @@ Rules that always apply:
 interleave in time (decor shot between portraits stays decor).
 - Everything filmed inside the time window of a ceremony (catechism, sacrament, wedding service) belongs to \
 that ceremony; things filmed before it belong to arrival, portraits, decor, etc.
-- Posed shots (people pose for the camera) -> a portraits part. Candid shots of people arriving, greeting, \
-chatting -> an arrival / guests part.
+- Start a new part when a new activity starts (a ceremony, treats, a photo shoot, face painting, live music, \
+dancing) or the place changes. Do not split one continuous stretch at the same place by subject: at the \
+reception the venue, set tables, food, guests arriving and sitting and kids playing around are one part. \
+(Before the ceremony the subject parts of the preset do stay apart: decor, details, interior, exterior, \
+portraits, arrival.)
+- Portraits vs arrival: portraits are shots the videographer sets up of the main people (the family with the \
+baby, the couple) and holds long, usually 7 s or more; they can be playful rather than stiff. Arrival is \
+candid: guests arriving, greeting, chatting, kids playing, and quick snapshots of about 5 s or less, even \
+when guests smile at the lens. Decide with duration and who is in the shot; the posed/candid flag of the \
+clip description is only a first guess.
 - Each ceremony (catechism, sacrament / mystery, wedding service) is split in two parts sharing one name: \
 ceremony_flow = the few long continuous main-camera takes that cover it start to end; ceremony_broll = \
 every other clip filmed inside that ceremony window, from all cameras (faces, reactions, details, \
 close-ups, kids with candles, dressing). Long masters never go to b-roll.
 - All drone (aerial) clips go to one part of kind drone, labelled DRONE.
-- kind unusable only for clips that are truly unusable (mostly floor, black, accidental); leave it out if \
-there are none.
+- kind unusable only for clips in which no frame shows anything of the event: black, only floor or ground, \
+white sky, lens cap. Short, blurry, shaky, obstructed or accidental-looking clips that still show people or \
+the place stay in the part they belong to: the videographer keeps them there. Most events have no unusable \
+part; then leave it out.
 - Labels: Greek, upper case, short, like «ΣΤΟΛΙΣΜΟΣ & CANDY BAR», «ΕΞΩΤΕΡΙΚΑ ΕΚΚΛΗΣΙΑΣ», \
 «ΛΕΠΤΟΜΕΡΕΙΕΣ (ΡΟΥΧΑ, ΛΑΜΠΑΔΑ, ΛΑΔΟΠΑΝΟ)», «ΠΟΡΤΡΕΤΑ ΟΙΚΟΓΕΝΕΙΑΣ (ΠΡΙΝ)», «ΑΦΙΞΗ ΚΑΛΕΣΜΕΝΩΝ», \
 «ΚΕΡΑΣΜΑ ΕΞΩ ΑΠΟ ΤΗΝ ΕΚΚΛΗΣΙΑ», «ΔΕΞΙΩΣΗ — ΧΩΡΟΣ & ΤΡΑΠΕΖΙΑ», «ΧΟΡΟΣ». For a ceremony pair give only the \
@@ -115,11 +127,10 @@ def _line(i: int, p: Project, c: Clip, d: dict) -> str:
     flags = [d.get("shot_type", ""), d.get("take", ""), "posed" if d.get("posed") else "candid"]
     if d.get("priest_in_vestments_at_font"):
         flags.append("priest_at_font")
-    if not d.get("usable", True):
-        flags.append("UNUSABLE")
     issues = ",".join(d.get("quality_issues") or [])
     return (f"#{i} | {span} | {fmt_duration(c.duration)} | {cam} | {','.join(d.get('moments') or [])} | "
-            f"{d.get('location', '')} | {' '.join(flags)} | {d.get('description', '')}"
+            f"{d.get('location', '')} | {','.join(d.get('people') or []) or 'nobody'} | {' '.join(flags)} | "
+            f"{d.get('description', '')}"
             + (f" | issues: {issues}" if issues else ""))
 
 
@@ -134,6 +145,12 @@ def _ceremony_name(part: dict) -> str:
     return (part.get("ceremony") or part["label_el"]).strip().upper()
 
 
+def shows_nothing(d: dict) -> bool:
+    """Pass-1 description of a clip with no picture of the event (the only kind that may go to 99)."""
+    issues = set(d.get("quality_issues") or [])
+    return "black" in issues or (not d.get("usable", True) and not d.get("people") and bool(issues & NOTHING_SHOWN))
+
+
 def ordered_clips(p: Project, ids: list[str]) -> list[Clip]:
     return sorted((p.clips[i] for i in ids), key=lambda c: (p.corrected(c) or datetime.min, c.id))
 
@@ -145,7 +162,7 @@ def ai_structure(p: Project, descriptions: dict[str, dict], event_type: str, mod
     clips = ordered_clips(p, list(descriptions))
     table = "\n".join(_line(i + 1, p, c, descriptions[c.id]) for i, c in enumerate(clips))
     user = (f"Event type: {event_type}. {len(clips)} clips on the corrected timeline "
-            f"(index | time | duration | camera | moments | location | shot flags | description):\n\n{table}\n\n"
+            f"(index | time | duration | camera | moments | location | who | shot flags | description):\n\n{table}\n\n"
             f"{_preset_text(preset)}\n\n{extra_notes}\nBuild the structure of this event and assign every clip "
             f"(use the clip numbers #1..#{len(clips)}).")
     client = credentials.client()
@@ -187,6 +204,15 @@ def finalize(p: Project, raw: dict, descriptions: dict[str, dict], preset: dict,
                          if 0 <= j < len(clips) and clips[j].id in assign), None)
             if near:
                 assign[c.id], conf[c.id] = assign[near], 0.3
+
+    # 1b. 99 only for clips with no picture of the event; anything else rejoins its neighbours in time
+    for i, c in enumerate(clips):
+        if parts[assign[c.id]]["kind"] == UNUSABLE and not shows_nothing(descriptions.get(c.id, {})):
+            keep = [j for d in range(1, len(clips)) for j in (i - d, i + d) if 0 <= j < len(clips)
+                    and parts[assign[clips[j].id]]["kind"] != UNUSABLE]
+            if keep:
+                near = next((j for j in keep if clips[j].device == c.device), keep[0])
+                assign[c.id], conf[c.id] = assign[clips[near].id], min(conf[c.id], 0.5)
 
     # 2. drone clips -> the drone part
     drone_ids = [c.id for c in clips if p.devices.get(c.device) and p.devices[c.device].kind == "drone"]
