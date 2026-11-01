@@ -1,0 +1,285 @@
+"""Pass 2: build this event's own category structure and assign every clip.
+
+One text-only call over all clip descriptions on the corrected timeline, then deterministic
+validation: every clip exactly once, ΡΟΗ/B-ROLL rule, drone folder, conservative smoothing of
+isolated outliers, chronological numbering and Greeklish folder names. Without an API key or
+internet the offline fallback segments the timeline by time gaps.
+"""
+
+from __future__ import annotations
+
+import json
+import time
+from dataclasses import asdict, dataclass, field
+from datetime import datetime, timedelta
+
+from hypershutter.core import config, cost, credentials
+from hypershutter.core.greeklish import folder_name
+from hypershutter.core.media import Clip, fmt_duration
+from hypershutter.core.project import Project
+
+FLOW, BROLL, NORMAL, DRONE, UNUSABLE = "ceremony_flow", "ceremony_broll", "normal", "drone", "unusable"
+REVIEW_BELOW = 0.6
+FLOW_MIN_S = 45.0                    # a ΡΟΗ master is a long main-camera take
+BROLL_MAX_IN_FLOW_S = 30.0
+
+SCHEMA = {
+    "type": "object",
+    "properties": {
+        "parts": {"type": "array", "items": {"type": "object", "properties": {
+            "id": {"type": "string"},
+            "label_el": {"type": "string", "description": "Greek, upper case, what this part of the day contains"},
+            "description_el": {"type": "string", "description": "one Greek sentence for the shot index"},
+            "kind": {"type": "string", "enum": [NORMAL, FLOW, BROLL, DRONE, UNUSABLE]},
+            "ceremony": {"type": "string", "description": "for ceremony_flow / ceremony_broll: the shared Greek name, e.g. ΚΑΤΗΧΗΣΗ; else empty"},
+        }, "required": ["id", "label_el", "description_el", "kind", "ceremony"], "additionalProperties": False}},
+        "assignments": {"type": "array", "items": {"type": "object", "properties": {
+            "clip": {"type": "integer"}, "part": {"type": "string"}, "confidence": {"type": "number"},
+        }, "required": ["clip", "part", "confidence"], "additionalProperties": False}},
+        "notes": {"type": "string"},
+    },
+    "required": ["parts", "assignments", "notes"],
+    "additionalProperties": False,
+}
+
+SYSTEM = """You organize the footage of one Greek event day for a professional videographer, exactly the \
+way he sorts it himself: one folder per part of the day, in chronological order, named after what is in it.
+
+There is no fixed list of categories: every event gets its own structure built from what is actually in \
+the footage. The preset below lists typical parts and their cues only as hints; skip parts that are not \
+there, add parts that are (e.g. kids' face painting, musicians, a parents' photo shoot), split or merge as \
+the footage requires. Prefer the videographer's level of granularity: typically 12-18 parts for a \
+baptism, each a meaningful chunk of the day, not one part per clip.
+
+Rules that always apply:
+- Decide the time boundaries of the parts first from the timeline, then assign clip by clip: categories \
+interleave in time (decor shot between portraits stays decor).
+- Everything filmed inside the time window of a ceremony (catechism, sacrament, wedding service) belongs to \
+that ceremony; things filmed before it belong to arrival, portraits, decor, etc.
+- Posed shots (people pose for the camera) -> a portraits part. Candid shots of people arriving, greeting, \
+chatting -> an arrival / guests part.
+- Each ceremony (catechism, sacrament / mystery, wedding service) is split in two parts sharing one name: \
+ceremony_flow = the few long continuous main-camera takes that cover it start to end; ceremony_broll = \
+every other clip filmed inside that ceremony window, from all cameras (faces, reactions, details, \
+close-ups, kids with candles, dressing). Long masters never go to b-roll.
+- All drone (aerial) clips go to one part of kind drone, labelled DRONE.
+- kind unusable only for clips that are truly unusable (mostly floor, black, accidental); leave it out if \
+there are none.
+- Labels: Greek, upper case, short, like «ΣΤΟΛΙΣΜΟΣ & CANDY BAR», «ΕΞΩΤΕΡΙΚΑ ΕΚΚΛΗΣΙΑΣ», \
+«ΛΕΠΤΟΜΕΡΕΙΕΣ (ΡΟΥΧΑ, ΛΑΜΠΑΔΑ, ΛΑΔΟΠΑΝΟ)», «ΠΟΡΤΡΕΤΑ ΟΙΚΟΓΕΝΕΙΑΣ (ΠΡΙΝ)», «ΑΦΙΞΗ ΚΑΛΕΣΜΕΝΩΝ», \
+«ΚΕΡΑΣΜΑ ΕΞΩ ΑΠΟ ΤΗΝ ΕΚΚΛΗΣΙΑ», «ΔΕΞΙΩΣΗ — ΧΩΡΟΣ & ΤΡΑΠΕΖΙΑ», «ΧΟΡΟΣ». For a ceremony pair give only the \
+ceremony name (e.g. ΚΑΤΗΧΗΣΗ, ΜΥΣΤΗΡΙΟ) in `ceremony` and as label_el; the ΡΟΗ / B-ROLL suffix is added for you.
+- No numbers in labels: numbering is done afterwards from the timeline.
+- Assign every clip exactly once. confidence = how sure you are of that clip's part (0 to 1).
+
+Answer only with the JSON object."""
+
+
+@dataclass
+class Category:
+    key: str
+    number: int
+    sub: str
+    label_el: str
+    folder: str
+    description_el: str
+    kind: str
+    clips: list[str] = field(default_factory=list)
+
+
+@dataclass
+class Structure:
+    categories: list[Category]
+    assignment: dict[str, str]                 # clip id -> category key
+    confidence: dict[str, float]
+    needs_review: list[str]
+    notes: str = ""
+    source: str = "ai"                          # ai | offline
+    usage: dict = field(default_factory=dict)
+
+    def to_json(self) -> dict:
+        return asdict(self)
+
+    def folder_of(self, clip_id: str) -> str:
+        key = self.assignment.get(clip_id)
+        return next((c.folder for c in self.categories if c.key == key), "")
+
+
+def _line(i: int, p: Project, c: Clip, d: dict) -> str:
+    t = p.corrected(c)
+    dev = p.devices.get(c.device)
+    cam = "drone" if dev and dev.kind == "drone" else ("main" if c.device == "A" else f"cam {c.device}")
+    span = f"{t:%H:%M:%S}–{t + timedelta(seconds=c.duration):%H:%M:%S}" if t else "??"
+    if d.get("refused") or not d:
+        return f"#{i} | {span} | {fmt_duration(c.duration)} | {cam} | (no description available)"
+    flags = [d.get("shot_type", ""), d.get("take", ""), "posed" if d.get("posed") else "candid"]
+    if d.get("priest_in_vestments_at_font"):
+        flags.append("priest_at_font")
+    if not d.get("usable", True):
+        flags.append("UNUSABLE")
+    issues = ",".join(d.get("quality_issues") or [])
+    return (f"#{i} | {span} | {fmt_duration(c.duration)} | {cam} | {','.join(d.get('moments') or [])} | "
+            f"{d.get('location', '')} | {' '.join(flags)} | {d.get('description', '')}"
+            + (f" | issues: {issues}" if issues else ""))
+
+
+def _preset_text(preset: dict) -> str:
+    parts = "\n".join(f"- {x['label']}" + (" (ceremony: ΡΟΗ + B-ROLL)" if x.get("split") else "")
+                      + (f": {x['cues']}" if x.get("cues") else "") for x in preset.get("typical_parts", []))
+    rules = "\n".join(f"- {r}" for r in preset.get("rules", []))
+    return f"Typical parts (hints, not a fixed list):\n{parts}\n\nPreset rules:\n{rules}"
+
+
+def _ceremony_name(part: dict) -> str:
+    return (part.get("ceremony") or part["label_el"]).strip().upper()
+
+
+def ordered_clips(p: Project, ids: list[str]) -> list[Clip]:
+    return sorted((p.clips[i] for i in ids), key=lambda c: (p.corrected(c) or datetime.min, c.id))
+
+
+def ai_structure(p: Project, descriptions: dict[str, dict], event_type: str, model: str = cost.DEFAULT_MODEL,
+                 effort: str = "high", extra_notes: str = "") -> tuple[dict, dict]:
+    """Raw model answer (parts + assignments by clip index) and usage."""
+    preset = config.load_preset(event_type)
+    clips = ordered_clips(p, list(descriptions))
+    table = "\n".join(_line(i + 1, p, c, descriptions[c.id]) for i, c in enumerate(clips))
+    user = (f"Event type: {event_type}. {len(clips)} clips on the corrected timeline "
+            f"(index | time | duration | camera | moments | location | shot flags | description):\n\n{table}\n\n"
+            f"{_preset_text(preset)}\n\n{extra_notes}\nBuild the structure of this event and assign every clip "
+            f"(use the clip numbers #1..#{len(clips)}).")
+    client = credentials.client()
+    t0 = time.time()
+    with client.beta.messages.stream(
+        model=model, max_tokens=64000, betas=["server-side-fallback-2026-07-01"], fallbacks="default",
+        system=SYSTEM, messages=[{"role": "user", "content": user}],
+        output_config={"effort": effort, "format": {"type": "json_schema", "schema": SCHEMA}},
+    ) as stream:
+        resp = stream.get_final_message()
+    if resp.stop_reason == "refusal":
+        raise RuntimeError(f"structure call refused ({getattr(resp.stop_details, 'category', None)})")
+    text = next(b.text for b in resp.content if b.type == "text")
+    raw = json.loads(text)
+    u = resp.usage
+    usage = {"model": resp.model or model, "input": u.input_tokens, "output": u.output_tokens,
+             "seconds": round(time.time() - t0, 1)}
+    raw["_order"] = [c.id for c in clips]
+    return raw, usage
+
+
+def finalize(p: Project, raw: dict, descriptions: dict[str, dict], preset: dict, source: str = "ai") -> Structure:
+    """Validate and number the model's answer (or the offline segmentation)."""
+    order: list[str] = raw["_order"]
+    parts = {x["id"]: dict(x) for x in raw["parts"]}
+    assign: dict[str, str] = {}
+    conf: dict[str, float] = {}
+    for a in raw["assignments"]:
+        idx = a["clip"] - 1
+        if 0 <= idx < len(order) and a["part"] in parts and order[idx] not in assign:
+            assign[order[idx]] = a["part"]
+            conf[order[idx]] = float(a.get("confidence", 0.5))
+    clips = ordered_clips(p, order)
+
+    # 1. every clip exactly once: missing ones join their nearest neighbour in time
+    for i, c in enumerate(clips):
+        if c.id not in assign:
+            near = next((clips[j].id for d in range(1, len(clips)) for j in (i - d, i + d)
+                         if 0 <= j < len(clips) and clips[j].id in assign), None)
+            if near:
+                assign[c.id], conf[c.id] = assign[near], 0.3
+
+    # 2. drone clips -> the drone part
+    drone_ids = [c.id for c in clips if p.devices.get(c.device) and p.devices[c.device].kind == "drone"]
+    if drone_ids:
+        dpart = next((k for k, x in parts.items() if x["kind"] == DRONE), None)
+        if dpart is None:
+            dpart = "drone"
+            parts[dpart] = {"id": dpart, "label_el": "DRONE", "description_el": "Εναέρια πλάνα.", "kind": DRONE, "ceremony": ""}
+        for cid in drone_ids:
+            if parts[assign.get(cid, dpart)]["kind"] != UNUSABLE:
+                assign[cid] = dpart
+
+    # 3. ΡΟΗ / B-ROLL by the videographer's rule
+    by_ceremony: dict[str, dict[str, str]] = {}
+    for k, x in parts.items():
+        if x["kind"] in (FLOW, BROLL):
+            by_ceremony.setdefault(_ceremony_name(x), {})[x["kind"]] = k
+    for name, pair in by_ceremony.items():
+        for kind in (FLOW, BROLL):
+            if kind not in pair:
+                k = f"{name}-{kind}"
+                parts[k] = {"id": k, "label_el": name, "description_el": "", "kind": kind, "ceremony": name}
+                pair[kind] = k
+        for c in clips:
+            if assign.get(c.id) == pair[FLOW] and c.duration < BROLL_MAX_IN_FLOW_S:
+                assign[c.id] = pair[BROLL]
+            elif (assign.get(c.id) == pair[BROLL] and c.device == "A" and c.duration >= 2 * FLOW_MIN_S
+                  and descriptions.get(c.id, {}).get("take") == "continuous_take"):
+                assign[c.id] = pair[FLOW]
+
+    # 4. isolated low-confidence outliers between two neighbours of the same part (same camera only)
+    seq = [c for c in clips if c.id not in drone_ids]
+    for i in range(1, len(seq) - 1):
+        a, c, b = seq[i - 1], seq[i], seq[i + 1]
+        if (conf.get(c.id, 1) < 0.5 and assign[a.id] == assign[b.id] != assign[c.id]
+                and parts[assign[a.id]]["kind"] == NORMAL and a.device == c.device == b.device):
+            assign[c.id] = assign[a.id]
+
+    # 5. numbering from the timeline: a ceremony pair shares one number (08 / 08a), unusable is 99
+    first: dict[str, datetime] = {}
+    for c in clips:
+        t = p.corrected(c) or datetime.max
+        k = assign.get(c.id)
+        if k:
+            group = _ceremony_name(parts[k]) if parts[k]["kind"] in (FLOW, BROLL) else k
+            first[group] = min(first.get(group, datetime.max), t)
+    style = preset["naming"]["greeklish_style"]
+    sep = preset["naming"]["separator"]
+    groups = sorted((g for g in first if not (g in parts and parts[g]["kind"] == UNUSABLE)), key=lambda g: first[g])
+    cats: list[Category] = []
+    for n, g in enumerate(groups, start=1):
+        if g in by_ceremony:
+            for kind, sub, suffix in ((FLOW, "", preset["naming"]["flow_suffix"]), (BROLL, "a", preset["naming"]["broll_suffix"])):
+                k = by_ceremony[g][kind]
+                label = f"{g}{sep}{suffix}"
+                cats.append(Category(k, n, sub, label, folder_name(n, label, sub, style),
+                                     parts[k].get("description_el", ""), kind))
+        else:
+            x = parts[g]
+            cats.append(Category(g, n, "", x["label_el"], folder_name(n, x["label_el"], "", style),
+                                 x.get("description_el", ""), x["kind"]))
+    for k, x in parts.items():
+        if x["kind"] == UNUSABLE and any(v == k for v in assign.values()):
+            u = preset["naming"]["unusable"]
+            cats.append(Category(k, u["number"], "", u["label"], folder_name(u["number"], u["label"], "", style),
+                                 x.get("description_el", ""), UNUSABLE))
+    for cat in cats:
+        cat.clips = [c.id for c in clips if assign.get(c.id) == cat.key]
+    cats = [c for c in cats if c.clips]
+    review = [c.id for c in clips if conf.get(c.id, 0) < REVIEW_BELOW]
+    return Structure(cats, {c: assign[c] for c in order if c in assign}, conf, review, raw.get("notes", ""), source)
+
+
+def offline_structure(p: Project, ids: list[str], preset: dict, gap_minutes: float = 10.0) -> Structure:
+    """No API: new part at every big time gap; drone apart; long main-camera takes as ΡΟΗ inside a part."""
+    clips = ordered_clips(p, ids)
+    parts: dict[str, dict] = {}
+    assignments = []
+    seg, last_end = 0, None
+    for i, c in enumerate(clips):
+        t = p.corrected(c)
+        if p.devices.get(c.device) and p.devices[c.device].kind == "drone":
+            parts.setdefault("drone", {"id": "drone", "label_el": "DRONE", "description_el": "", "kind": DRONE, "ceremony": ""})
+            assignments.append({"clip": i + 1, "part": "drone", "confidence": 0.9})
+            continue
+        if last_end is None or (t and (t - last_end).total_seconds() > gap_minutes * 60):
+            seg += 1
+        key = f"seg{seg}"
+        parts.setdefault(key, {"id": key, "label_el": f"ΜΕΡΟΣ {seg}", "description_el": "", "kind": NORMAL, "ceremony": ""})
+        assignments.append({"clip": i + 1, "part": key, "confidence": 0.4})
+        if t:
+            end = t + timedelta(seconds=c.duration)
+            last_end = end if last_end is None else max(last_end, end)
+    raw = {"parts": list(parts.values()), "assignments": assignments, "notes": "offline: time-gap segmentation",
+           "_order": [c.id for c in clips]}
+    return finalize(p, raw, {}, preset, source="offline")

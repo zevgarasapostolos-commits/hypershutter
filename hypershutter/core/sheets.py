@@ -94,10 +94,12 @@ def _clock(t: float) -> str:
 
 
 def clip_sheets(clip: Clip, frames: list[Frame], start: datetime | None, settings: FrameSettings,
-                layout: SheetLayout = SheetLayout()) -> list[Path]:
-    """Sheets for the model: label = time in clip · corrected time of day. No file names."""
+                layout: SheetLayout = SheetLayout(), variant: str = "") -> list[Path]:
+    """Sheets for the model: label = time in clip · corrected time of day. No file names.
+    `variant` separates the cache of a subsampled frame set from the full one."""
     key = store.file_key(clip.name, clip.size, clip.mtime)
-    d = config.cache_dir("sheets", hashlib.sha1(key.encode()).hexdigest()[:20], f"{settings.key()}_{layout.key()}")
+    d = config.cache_dir("sheets", hashlib.sha1(key.encode()).hexdigest()[:20],
+                         f"{settings.key()}_{layout.key()}{variant}")
     paths = []
     for k in range(0, len(frames), layout.per_sheet):
         chunk = frames[k:k + layout.per_sheet]

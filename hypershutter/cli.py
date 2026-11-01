@@ -14,10 +14,7 @@ from hypershutter.core.media import fmt_duration, fmt_offset
 from hypershutter.core.project import Project
 
 # Subcommands still to be built, with the milestone that delivers them.
-PLANNED = {
-    "describe": "M3", "structure": "M3", "eval": "M3",
-    "apply": "M5", "undo": "M5", "premiere": "M6",
-}
+PLANNED = {"apply": "M5", "undo": "M5", "premiere": "M6"}
 
 
 def cmd_doctor(_args) -> int:
@@ -150,6 +147,121 @@ def cmd_frames(args) -> int:
     return 0
 
 
+def _confirm(args):
+    def ask(e: cost.Estimate) -> bool:
+        print(f"\nAbout to describe {e.clips} clips ({e.sheets} sheets, {e.frames} frames) with {e.model}: "
+              f"~{e.input_tokens / 1e6:.2f}M input + {e.output_tokens / 1e3:.0f}K output tokens ≈ ${e.cost_usd:.2f}, "
+              f"~{e.minutes:.0f} min (already described clips are free).")
+        if args.yes:
+            return True
+        return input("Continue? [y/N] ").strip().lower() in ("y", "yes", "ν", "ναι")
+    return ask
+
+
+def _options(args) -> "pipeline.AnalyzeOptions":
+    from hypershutter.core import pipeline
+    return pipeline.AnalyzeOptions(event_type=args.type, model=args.model, effort_describe=args.effort_describe,
+                                   effort_structure=args.effort_structure, interval=args.interval,
+                                   offline=getattr(args, "offline", False))
+
+
+def _synced(folder: Path, workers: int = 6) -> Project:
+    p = _load_or_scan(folder, rescan=False, workers=workers)
+    if not p.synced_at:
+        sync.auto_sync(p, folder, log=lambda s: print("  " + s, file=sys.stderr))
+        p.save()
+    return p
+
+
+def _print_structure(st) -> None:
+    print(f"\n{len(st.categories)} folders ({st.source}), {len(st.needs_review)} clips need review")
+    for c in sorted(st.categories, key=lambda c: (c.number, c.sub)):
+        print(f"  {c.folder:48} {len(c.clips):4} clips  {c.description_el[:70]}")
+    if st.notes:
+        print(f"\nnotes: {st.notes[:600]}")
+
+
+def cmd_structure(args) -> int:
+    from hypershutter.core import pipeline
+    folder = Path(args.folder).expanduser()
+    p = _synced(folder)
+    res = pipeline.analyze(p, _options(args), _confirm(args), progress=_progress)
+    if res is None:
+        print("cancelled")
+        return 1
+    _print_structure(res.structure)
+    if res.usage:
+        print(f"\ncost ≈ ${res.cost():.2f}, {res.usage.calls} describe calls, {res.usage.refusals} refusals")
+    return 0
+
+
+def cmd_eval(args) -> int:
+    import time as _time
+    from datetime import datetime as _dt
+
+    from hypershutter.core import evaluate, pipeline
+    folder = Path(args.folder).expanduser()
+    p = _synced(folder)
+    if args.index:
+        truth = evaluate.truth_from_index(Path(args.index).expanduser())
+        truth = {cid: truth[cid.split("~")[0]] for cid in p.clips if cid.split("~")[0] in truth}
+    else:
+        truth = evaluate.truth_from_folders({c.id: c.rel for c in p.clips.values() if c.kind == "video"})
+    if not truth:
+        print("no ground truth: the clips are not in category folders and no --index was given")
+        return 1
+    t0 = _time.time()
+    res = pipeline.analyze(p, _options(args), _confirm(args), progress=_progress)
+    if res is None:
+        print("cancelled")
+        return 1
+    st = res.structure
+    pred = {cid: st.folder_of(cid) for cid in st.assignment}
+    order = [c.id for _, c in p.timeline() if c.id in pred]
+    m = evaluate.metrics(truth, pred, order)
+    for e in m["errors"]:
+        e["desc"] = (res.descriptions.get(e["clip"]) or {}).get("description", "")[:140]
+    clocks = ", ".join(f"{d.id} {fmt_offset(d.raw_offset)} ({d.drift_status})" for d in p.devices.values()
+                       if d.kind == "camera")
+    run = {"when": _dt.now().isoformat(timespec="minutes"), "model": args.model, "effort_describe": args.effort_describe,
+           "effort_structure": args.effort_structure, "interval": args.interval, "prompt": "d3/s1",
+           "clocks": clocks, "cost": res.cost(), "refusals": res.usage.refusals if res.usage else 0,
+           "describe_s": res.usage.wall if res.usage else 0,
+           "structure_s": st.usage.get("seconds", 0) if st.usage else 0, "total_s": round(_time.time() - t0)}
+    out_dir = config.REPO_ROOT / "reports"
+    out_dir.mkdir(exist_ok=True)
+    stem = f"{p.name.strip().replace(' ', '_')}-{_dt.now():%Y%m%d-%H%M}" + ("-offline" if args.offline else "")
+    (out_dir / f"{stem}.md").write_text(evaluate.report_md(p.name.strip(), m, run))
+    (out_dir / f"{stem}.json").write_text(json.dumps({"run": run, "metrics": m, "structure": st.to_json()},
+                                                     ensure_ascii=False, indent=1))
+    _print_structure(st)
+    pw = m["pairwise"]
+    print(f"\nmatched accuracy {m['matched_accuracy']:.1%} · pairwise F1 {pw['f1']:.3f} · ARI {m['ari']:.3f} · "
+          f"folders {m['folders_pred']} vs {m['folders_truth']} · boundaries F1 {m['boundaries']['f1']:.3f}")
+    print(f"report: reports/{stem}.md")
+    return 0
+
+
+def cmd_key(args) -> int:
+    import getpass
+
+    from hypershutter.core import credentials
+
+    if args.action == "set":
+        key = getpass.getpass("Anthropic API key (input hidden): ").strip()
+        if not key.startswith("sk-ant-"):
+            print("That does not look like an Anthropic API key (sk-ant-…); nothing saved.")
+            return 1
+        credentials.set_api_key(key)
+        print(f"saved to the macOS Keychain: {credentials.masked()}")
+    elif args.action == "delete":
+        credentials.delete_api_key()
+        print("removed from the Keychain")
+    else:
+        print(f"API key: {credentials.masked()}")
+    return 0
+
+
 def cmd_timeline(args) -> int:
     folder = Path(args.folder).expanduser()
     p = _load_or_scan(folder, rescan=False, workers=6)
@@ -183,6 +295,29 @@ def main(argv: list[str] | None = None) -> int:
     sp.add_argument("--workers", type=int, default=6)
     sp.add_argument("--sample-out", help="also copy the sheets of these clips to a folder")
     sp.set_defaults(func=cmd_frames)
+
+    def analysis_args(sp):
+        sp.add_argument("folder")
+        sp.add_argument("--type", default="baptism", choices=["baptism", "wedding", "event"])
+        sp.add_argument("--model", default=cost.DEFAULT_MODEL, choices=list(cost.MODELS))
+        sp.add_argument("--effort-describe", default="low", choices=["low", "medium", "high"])
+        sp.add_argument("--effort-structure", default="high", choices=["low", "medium", "high", "xhigh", "max"])
+        sp.add_argument("--interval", type=float, default=2.0)
+        sp.add_argument("--offline", action="store_true", help="no API: time-gap segmentation")
+        sp.add_argument("--yes", action="store_true", help="skip the cost confirmation")
+
+    sp = sub.add_parser("structure", help="describe every clip and build the event's folder structure (dry run)")
+    analysis_args(sp)
+    sp.set_defaults(func=cmd_structure)
+
+    sp = sub.add_parser("eval", help="accuracy against an organized event (read-only); report in reports/")
+    analysis_args(sp)
+    sp.add_argument("--index", help="use this shot index as ground truth instead of the folders")
+    sp.set_defaults(func=cmd_eval)
+
+    sp = sub.add_parser("key", help="store the Anthropic API key in the macOS Keychain")
+    sp.add_argument("action", choices=["set", "status", "delete"], nargs="?", default="status")
+    sp.set_defaults(func=cmd_key)
 
     sp = sub.add_parser("timeline", help="print every clip on the corrected timeline")
     sp.add_argument("folder"); sp.add_argument("--limit", type=int, default=0)
