@@ -171,7 +171,7 @@ def to_xml(seq: Sequence) -> str:
     vtracks = []
     for n, tr in enumerate(seq.video, start=1):
         items = "".join(w.clip(it, f"v{n}", False) for it in sorted(tr, key=lambda i: i.start))
-        vtracks.append(f"<track>{items}<enabled>TRUE</enabled><locked>FALSE</locked></track>")
+        vtracks.append(f"<track>{items}</track>")
     atracks = []
     for n, tr in enumerate(seq.audio, start=1):
         parts = []
@@ -181,8 +181,7 @@ def to_xml(seq: Sequence) -> str:
             parts.append(w.clip(it, f"a{n}", True))
             if it.fade_out:
                 parts.append(w.fade(it.end - it.fade_out, it.end, "end-black"))
-        atracks.append(f"<track>{''.join(parts)}<enabled>TRUE</enabled><locked>FALSE</locked>"
-                       f"<outputchannelindex>{1 if n % 2 else 2}</outputchannelindex></track>")
+        atracks.append(f"<track>{''.join(parts)}<outputchannelindex>{1 if n % 2 else 2}</outputchannelindex></track>")
     fmt = (f"<format><samplecharacteristics>{_rate(FPS)}<width>{WIDTH}</width><height>{HEIGHT}</height>"
            "<pixelaspectratio>square</pixelaspectratio><fielddominance>none</fielddominance></samplecharacteristics></format>")
     afmt = "<format><samplecharacteristics><depth>16</depth><samplerate>48000</samplerate></samplecharacteristics></format>"
