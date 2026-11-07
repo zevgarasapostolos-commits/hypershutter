@@ -1,7 +1,7 @@
 """Combine the ablation runs in reports/ablation/ into the thesis tables (Markdown).
 
     python scripts/ablation_table.py            # matched accuracy and pairwise F1, mean ± sd per event
-For each event and condition the newest run wins. Density runs (…-density-*.json) get their own table.
+Repeats of a condition are pooled over all run files. Density runs (…-density-*.json) get their own table.
 """
 
 import json
@@ -15,7 +15,8 @@ EVENTS = [("gamos 25-07", "Wedding + baptism (507 clips)"), ("073 Β11-10-2026 �
 
 
 def load():
-    runs = {}
+    """Every repeat of a condition, from every run file, pooled (same prompts and cached pass 1)."""
+    pooled: dict = {}
     dens = {}
     for f in sorted(config.reports_dir("ablation").glob("*.json"), key=lambda f: f.stat().st_mtime):
         d = json.loads(f.read_text())
@@ -23,8 +24,8 @@ def load():
             dens[d["event"]] = d
             continue
         for name, c in d["conditions"].items():
-            runs[(d["event"].strip(), name)] = c["summary"]
-    return runs, dens
+            pooled.setdefault((d["event"].strip(), name), []).extend(c["runs"])
+    return {k: ablation.summarize(v) for k, v in pooled.items()}, dens
 
 
 def cell(s, key, pct):
@@ -40,7 +41,7 @@ def main() -> None:
     runs, dens = load()
     for key, title, pct in (("matched_accuracy", "Matched accuracy (%)", True), ("pairwise_f1", "Pairwise F1", False),
                             ("ari", "Adjusted Rand Index", False), ("boundary_f1", "Boundary F1", False)):
-        print(f"\n**{title}** (mean ± sd over repeats)\n")
+        print(f"\n**{title}** (mean ± sd over repeats; n = repeats)\n")
         print("| Signals | " + " | ".join(t for _, t in EVENTS) + " |")
         print("|---|" + "---|" * len(EVENTS))
         for name in ablation.CONDITIONS:

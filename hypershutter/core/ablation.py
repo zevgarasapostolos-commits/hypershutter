@@ -44,7 +44,8 @@ def score(p: Project, truth: dict[str, str], st: structure.Structure, ids: list[
     order = [c.id for _, c in p.timeline() if c.id in pred]
     m = evaluate.metrics(t, pred, order)
     return {"matched_accuracy": m["matched_accuracy"], "pairwise_f1": m["pairwise"]["f1"], "ari": m["ari"],
-            "boundary_f1": m["boundaries"]["f1"], "folders_pred": m["folders_pred"], "folders_truth": m["folders_truth"]}
+            "boundary_f1": m["boundaries"]["f1"], "folders_pred": m["folders_pred"], "folders_truth": m["folders_truth"],
+            "errors": [{k: e.get(k) for k in ("clip", "truth", "pred_as")} for e in m["errors"]]}
 
 
 def summarize(runs: list[dict]) -> dict:
