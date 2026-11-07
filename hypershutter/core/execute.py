@@ -66,6 +66,10 @@ def _nfc(s: str) -> str:
     return unicodedata.normalize("NFC", s).strip()
 
 
+def read_only_name(p: Project) -> bool:
+    return _nfc(Path(p.root).name) in {_nfc(n) for n in READ_ONLY}
+
+
 def check_allowed(p: Project, force: bool = False) -> None:
     """Refuse the reference projects, and a project someone already organized by hand."""
     root = Path(p.root)

@@ -230,53 +230,24 @@ def cmd_structure(args) -> int:
 
 
 def cmd_eval(args) -> int:
-    import time as _time
-    from datetime import datetime as _dt
-
-    from hypershutter.core import describe, evaluate, pipeline, structure
+    from hypershutter.core import evaluate
     folder = Path(args.folder).expanduser()
     p = _synced(folder)
-    if args.index:
-        listed = evaluate.truth_from_index(Path(args.index).expanduser())
-        truth = {cid: listed[cid.split("~")[0]] for cid in p.clips if cid.split("~")[0] in listed}
-        if len(truth) < 0.8 * len(listed):                 # before any API call
-            print(f"the index lists {len(listed)} clips but only {len(truth)} of them are in this folder "
-                  "(footage moved or archived?); not evaluating")
-            return 1
-    else:
-        truth = evaluate.truth_from_folders({c.id: c.rel for c in p.clips.values() if c.kind == "video"})
-    if not truth:
-        print("no ground truth: the clips are not in category folders and no --index was given")
+    try:
+        r = evaluate.run(p, _options(args), Path(args.index).expanduser() if args.index else None,
+                         _confirm(args), progress=_progress)
+    except RuntimeError as e:
+        print(f"not evaluating: {e}")
         return 1
-    t0 = _time.time()
-    res = pipeline.analyze(p, _options(args), _confirm(args), progress=_progress)
-    if res is None:
+    if r is None:
         print("cancelled")
         return 1
-    st = res.structure
-    pred = {cid: st.folder_of(cid) for cid in st.assignment}
-    order = [c.id for _, c in p.timeline() if c.id in pred]
-    m = evaluate.metrics(truth, pred, order)
-    for e in m["errors"]:
-        e["desc"] = (res.descriptions.get(e["clip"]) or {}).get("description", "")[:140]
-    clocks = ", ".join(f"{d.id} {fmt_offset(d.raw_offset)} ({d.drift_status})" for d in p.devices.values()
-                       if d.kind == "camera")
-    run = {"when": _dt.now().isoformat(timespec="minutes"), "model": args.model, "effort_describe": args.effort_describe,
-           "effort_structure": args.effort_structure, "interval": args.interval, "prompt": f"{describe.PROMPT_VERSION}/{structure.PROMPT_VERSION}",
-           "clocks": clocks, "cost": res.cost(), "refusals": res.usage.refusals if res.usage else 0,
-           "describe_s": res.usage.wall if res.usage else 0,
-           "structure_s": st.usage.get("seconds", 0) if st.usage else 0, "total_s": round(_time.time() - t0)}
-    out_dir = config.REPO_ROOT / "reports"
-    out_dir.mkdir(exist_ok=True)
-    stem = f"{p.name.strip().replace(' ', '_')}-{_dt.now():%Y%m%d-%H%M}" + ("-offline" if args.offline else "")
-    (out_dir / f"{stem}.md").write_text(evaluate.report_md(p.name.strip(), m, run))
-    (out_dir / f"{stem}.json").write_text(json.dumps({"run": run, "metrics": m, "structure": st.to_json()},
-                                                     ensure_ascii=False, indent=1))
-    _print_structure(st)
+    _print_structure(r["structure"])
+    m = r["metrics"]
     pw = m["pairwise"]
     print(f"\nmatched accuracy {m['matched_accuracy']:.1%} · pairwise F1 {pw['f1']:.3f} · ARI {m['ari']:.3f} · "
           f"folders {m['folders_pred']} vs {m['folders_truth']} · boundaries F1 {m['boundaries']['f1']:.3f}")
-    print(f"report: reports/{stem}.md")
+    print(f"report: {r['md']}")
     return 0
 
 

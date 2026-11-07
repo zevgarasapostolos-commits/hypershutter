@@ -112,11 +112,15 @@ def drives(volumes: Path = VOLUMES, with_projects: bool = True) -> list[Drive]:
     planned = planned_bytes()
     out = []
     roots = [Path("/")] + (sorted(v for v in volumes.iterdir() if v.is_dir() and not v.is_symlink()) if volumes.exists() else [])
+    seen: set[tuple[int, int]] = set()
     for v in roots:
         try:
             u = shutil.disk_usage(v)
         except OSError:
             continue
+        if (u.total, u.used) in seen:                # another volume of the same APFS container
+            continue
+        seen.add((u.total, u.used))
         d = Drive(str(v), "Macintosh HD" if str(v) == "/" else v.name, u.total, u.used, u.free,
                   is_card=str(v) != "/" and cards.looks_like_card(v), is_system=str(v) == "/",
                   projects=projects.get(str(v), []), planned=planned.get(str(v), 0))

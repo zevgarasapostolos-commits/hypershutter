@@ -227,3 +227,65 @@ figcaption { display: flex; flex-direction: column; padding: 6px 2px 2px; }
 .progress-line { margin-top: var(--hs-space-3) !important; color: var(--hs-slate); }
 .last-run { align-self: center; font-size: 13px; }
 
+
+/* ---------- sidebar extras ---------- */
+.nav-sep { height: 1px; background: var(--hs-hairline); margin: var(--hs-space-2) var(--hs-space-3); }
+.nav-item.minor { font-size: 12.5px; color: var(--hs-ink-muted); }
+.side-status { margin: auto var(--hs-space-3) var(--hs-space-2); font-size: 12px; color: var(--hs-ink-muted); display: grid; gap: 6px; }
+.job-line { display: flex; align-items: center; gap: 8px; }
+.dot.run { background: var(--hs-gold); animation: hs-pulse 1.6s var(--hs-ease) infinite; }
+.dot.warn { background: #B8860B; }
+.dot.critical { background: #A33A2B; }
+@keyframes hs-pulse { 50% { opacity: 0.35; } }
+
+/* ---------- shared bits for the newer screens ---------- */
+.card.wide { max-width: none; }
+.small { font-size: 12px; }
+.warn { color: #8A4B12; }
+.code, pre.report { background: var(--hs-surface); border: 1px solid var(--hs-hairline); border-radius: var(--hs-radius);
+  padding: var(--hs-space-3); font: 12px/1.5 ui-monospace, "SF Mono", Menlo, monospace; white-space: pre-wrap; overflow-x: auto; }
+pre.report { max-height: 520px; overflow: auto; }
+.table.drives td { white-space: nowrap; }
+.meter { display: inline-block; width: 160px; height: 6px; border-radius: 3px; background: var(--hs-surface);
+  border: 1px solid var(--hs-hairline); overflow: hidden; vertical-align: middle; }
+.meter span { display: block; height: 100%; background: var(--hs-slate); transition: width var(--hs-dur) var(--hs-ease); }
+.meter.warn span { background: #B8860B; }
+.meter.critical span { background: #A33A2B; }
+.pill.ok { border-color: var(--hs-gold); }
+.pill.warn { color: #8A4B12; border-color: #B8860B; }
+.pill.critical { color: #A33A2B; border-color: #A33A2B; }
+.clickable { cursor: pointer; }
+.clickable:hover td { background: var(--hs-surface); }
+.checks { display: flex; flex-wrap: wrap; gap: 6px 18px; }
+.inline3 { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: var(--hs-space-3); }
+.inline3 input { width: 100%; }
+
+/* ingest */
+.card-list { list-style: none; padding: 0; margin: 0 0 var(--hs-space-3); display: grid; gap: 8px; }
+.card-item { width: 100%; text-align: left; display: grid; gap: 2px; padding: 12px 14px; border: 1px solid var(--hs-hairline);
+  border-radius: var(--hs-radius); background: var(--hs-white); cursor: pointer; font: inherit; color: var(--hs-ink); }
+.card-item.on, .card-item:hover { border-color: var(--hs-gold); background: var(--hs-surface); }
+.card-name { font-weight: 600; }
+.dest-list { list-style: none; padding: 0; margin: 0 0 8px; display: grid; gap: 6px; }
+.dest-progress { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 4px 12px; align-items: center; margin: 10px 0; }
+.dest-progress .muted { grid-column: 1 / -1; font-size: 12px; }
+.card.safe { border-left: 2px solid var(--hs-gold); }
+.card.unsafe { border-left: 2px solid #A33A2B; }
+.keyrow { display: flex; gap: 8px; align-items: center; }
+.keyrow input { flex: 1; max-width: 360px; }
+
+/* onboarding */
+.onboarding { max-width: 640px; }
+.steps { display: flex; gap: 6px; margin-bottom: var(--hs-space-4); }
+.step { width: 28px; height: 2px; background: var(--hs-hairline); }
+.step.on { background: var(--hs-gold); }
+.step.done { background: var(--hs-slate); }
+
+/* features */
+.features { display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: var(--hs-space-4); }
+.feature { border-top: 1px solid var(--hs-gold); padding-top: var(--hs-space-3); }
+.feature h2 { font: 400 22px/1.25 var(--hs-font-display); color: var(--hs-slate); margin: 6px 0 8px; }
+.feature p { color: var(--hs-ink); line-height: 1.55; margin: 0; }
+.faq { border-bottom: 1px solid var(--hs-hairline); padding: 10px 0; }
+.faq summary { cursor: pointer; color: var(--hs-slate); font-weight: 500; }
+.faq p { margin: 8px 0 0; line-height: 1.55; }

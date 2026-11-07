@@ -135,3 +135,48 @@ def report_md(name: str, res: dict, run: dict) -> str:
     for e in res["errors"]:
         lines.append(f"| {e['clip']} | {e['truth']} | {e['pred']} | {e['pred_as'] or '—'} | {e.get('desc', '')} |")
     return "\n".join(lines) + "\n"
+
+
+def run(p, opts, index_md: Path | None = None, confirm=lambda e: True, progress=None) -> dict | None:
+    """The whole evaluation of an organized event (read-only): truth from its folders or from the
+    shot index, the pipeline with names hidden, metrics, and the Markdown + JSON report."""
+    import json
+    import time as _time
+    from datetime import datetime as _dt
+
+    from hypershutter.core import config, describe, pipeline, structure
+    from hypershutter.core.media import fmt_offset
+    if index_md:
+        listed = truth_from_index(Path(index_md))
+        truth = {cid: listed[cid.split("~")[0]] for cid in p.clips if cid.split("~")[0] in listed}
+        if len(truth) < 0.8 * len(listed):                # before any API call
+            raise RuntimeError(f"the index lists {len(listed)} clips but only {len(truth)} are in this folder")
+    else:
+        truth = truth_from_folders({c.id: c.rel for c in p.clips.values() if c.kind == "video"})
+    if not truth:
+        raise RuntimeError("no ground truth: the clips are not in category folders and no index was given")
+    t0 = _time.time()
+    res = pipeline.analyze(p, opts, confirm, progress=progress)
+    if res is None:
+        return None
+    st = res.structure
+    pred = {cid: st.folder_of(cid) for cid in st.assignment}
+    order = [c.id for _, c in p.timeline() if c.id in pred]
+    m = metrics(truth, pred, order)
+    for e in m["errors"]:
+        e["desc"] = (res.descriptions.get(e["clip"]) or {}).get("description", "")[:140]
+    clocks = ", ".join(f"{d.id} {fmt_offset(d.raw_offset)} ({d.drift_status})" for d in p.devices.values()
+                       if d.kind == "camera")
+    run_info = {"when": _dt.now().isoformat(timespec="minutes"), "model": opts.model,
+                "effort_describe": opts.effort_describe, "effort_structure": opts.effort_structure,
+                "interval": opts.interval, "signals": list(opts.signals),
+                "prompt": f"{describe.PROMPT_VERSION}/{structure.PROMPT_VERSION}", "clocks": clocks,
+                "cost": res.cost(), "refusals": res.usage.refusals if res.usage else 0,
+                "describe_s": res.usage.wall if res.usage else 0,
+                "structure_s": st.usage.get("seconds", 0) if st.usage else 0, "total_s": round(_time.time() - t0)}
+    stem = f"{p.name.strip().replace(' ', '_')}-{_dt.now():%Y%m%d-%H%M}" + ("-offline" if opts.offline else "")
+    out = config.reports_dir()
+    (out / f"{stem}.md").write_text(report_md(p.name.strip(), m, run_info))
+    (out / f"{stem}.json").write_text(json.dumps({"run": run_info, "metrics": m, "structure": st.to_json()},
+                                                 ensure_ascii=False, indent=1))
+    return {"metrics": m, "run": run_info, "structure": st, "md": str(out / f"{stem}.md"), "stem": stem}

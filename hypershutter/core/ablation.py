@@ -142,8 +142,7 @@ def density_study(p: Project, base: pipeline.AnalyzeOptions, intervals: tuple[fl
 
 
 def save(result: dict, stem: str) -> Path:
-    out = config.REPO_ROOT / "reports" / "ablation"
-    out.mkdir(parents=True, exist_ok=True)
+    out = config.reports_dir("ablation")
     path = out / f"{stem}-{datetime.now():%Y%m%d-%H%M}.json"
     path.write_text(json.dumps(result, ensure_ascii=False, indent=1))
     return path

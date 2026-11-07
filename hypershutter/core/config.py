@@ -31,6 +31,16 @@ def app_support_dir() -> Path:
     return root
 
 
+def reports_dir(*parts: str) -> Path:
+    """reports/ in the repository while developing; Application Support inside the packaged app."""
+    base = REPO_ROOT / "reports"
+    if not os.access(REPO_ROOT, os.W_OK) or not (REPO_ROOT / "hypershutter").is_dir():
+        base = app_support_dir() / "reports"
+    d = base.joinpath(*parts)
+    d.mkdir(parents=True, exist_ok=True)
+    return d
+
+
 def cache_dir(*parts: str) -> Path:
     d = app_support_dir().joinpath("cache", *parts)
     d.mkdir(parents=True, exist_ok=True)

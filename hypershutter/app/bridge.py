@@ -16,8 +16,8 @@ from pathlib import Path
 from typing import Callable
 
 from hypershutter import __version__
-from hypershutter.core import (checks, config, cost, describe, execute, frames, index, pipeline, review, scan,
-                               store, sync)
+from hypershutter.core import (cards, checks, config, cost, credentials, describe, drives, evaluate, execute, export,
+                               frames, index, ingest, jobs, pipeline, proxies, review, scan, settings, store, sync)
 from hypershutter.core.media import fmt_duration, fmt_offset
 from hypershutter.core.project import Project
 from hypershutter.core.structure import Structure
@@ -30,7 +30,8 @@ STAGE = {"probe": "scan", "frames": "frames", "scene": "frames", "audio": "audio
 
 
 class Bridge:
-    def __init__(self, media_url: Callable[[str], str], pick_folder: Callable[[], str | None] | None = None):
+    def __init__(self, media_url: Callable[[str], str], pick_folder: Callable[[], str | None] | None = None,
+                 start_queue: bool = True):
         self._media_url = media_url
         self._pick = pick_folder or _osascript_folder
         self._lock = threading.Lock()
@@ -39,6 +40,10 @@ class Bridge:
         self._p: Project | None = None
         self._by_clip: dict[str, list[frames.Frame]] | None = None
         self._audio: dict[str, dict] | None = None
+        self._ingest: dict | None = None            # the ingest runs beside the analysis jobs
+        self._queue = jobs.JobQueue({"proxy": proxies.runner, "export": export.runner}, workers=1)
+        if start_queue:
+            self._queue.start()
         self._st: Structure | None = None
 
     # ---------- events and jobs ----------
@@ -84,9 +89,11 @@ class Bridge:
     # ---------- Home ----------
 
     def info(self) -> dict:
+        s = settings.load()
         return {"version": __version__, "event_types": list(EVENT_TYPES),
                 "models": [{"id": k, "label": v["label"]} for k, v in cost.MODELS.items()],
-                "default_model": cost.DEFAULT_MODEL, "ffmpeg": bool(config.find_tool("ffmpeg"))}
+                "default_model": s["model"], "ffmpeg": bool(config.find_tool("ffmpeg")),
+                "onboarded": s["onboarded"], "key": bool(credentials.get_api_key()), "language": s["language"]}
 
     def recent(self) -> list[dict]:
         out = []
@@ -144,8 +151,11 @@ class Bridge:
 
     def _options(self, model: str | None = None, offline: bool = False) -> pipeline.AnalyzeOptions:
         p = self._require()
-        return pipeline.AnalyzeOptions(event_type=p.event_type, model=model or cost.DEFAULT_MODEL,
-                                       offline=offline, schedule=p.schedule)
+        s = settings.load()
+        signals = ("time", "camera", "image", "audio") if s["use_sound"] else ("time", "camera", "image")
+        return pipeline.AnalyzeOptions(event_type=p.event_type, model=model or s["model"] or cost.DEFAULT_MODEL,
+                                       offline=offline, schedule=p.schedule, interval=float(s["frame_interval"]),
+                                       signals=signals)
 
     def _require(self) -> Project:
         if self._p is None:
@@ -350,6 +360,229 @@ class Bridge:
 
         return self._start("undo", work)
 
+
+
+    # ---------- Ingest ----------
+
+    def cards(self) -> list[dict]:
+        out = []
+        for c in cards.detect():
+            out.append({"path": c.path, "name": c.name, "kind": c.kind, "camera": c.camera, "identity": c.identity,
+                        "label": c.label, "clips": len(c.media), "files": len(c.files), "gb": round(c.bytes / 1e9, 2)})
+        return out
+
+    def pick_dest(self) -> str | None:
+        return self._pick()
+
+    def read_folder_as_card(self, path: str) -> dict:
+        c = cards.read_card(Path(path).expanduser())
+        return {"path": c.path, "name": c.name, "kind": c.kind, "camera": c.camera, "identity": c.identity,
+                "label": c.label, "clips": len(c.media), "files": len(c.files), "gb": round(c.bytes / 1e9, 2)}
+
+    def ingest_preflight(self, card: str, project: str, label: str, dests: list[str]) -> dict:
+        c = cards.read_card(Path(card))
+        jobs_ = ingest.plan(c, label or "card")
+        proxy = settings.load()["proxy_preset"] if settings.load()["make_proxies"] else "none"
+        problems = ingest.preflight(c, jobs_, [Path(d) for d in dests], project, proxy) if dests and project else []
+        return {"files": len(jobs_), "gb": round(c.bytes / 1e9, 2), "problems": problems,
+                "targets": [str(Path(d) / project / (label or "card")) for d in dests]}
+
+    def start_ingest(self, card: str, project: str, label: str, dests: list[str]) -> dict:
+        if self._ingest and self._ingest.get("status") == "running":
+            raise RuntimeError("an ingest is already running")
+        s = settings.load()
+        proxy = s["proxy_preset"] if s["make_proxies"] else "none"
+        c = cards.read_card(Path(card))
+        self._ingest = {"status": "running", "card": c.name, "project": project, "label": label}
+
+        def progress(ev: dict) -> None:
+            self._emit(type="ingest", **ev)
+
+        def on_verified(root: Path, rel: str) -> None:
+            if proxy != "none":
+                proxies.enqueue(self._queue, root, [rel], proxy)
+
+        def run() -> None:
+            try:
+                r = ingest.ingest(c, project, label, [Path(d) for d in dests], proxy, progress=progress,
+                                  on_verified=on_verified)
+                self._ingest.update(status="done", report={"safe": r.safe_to_format, "files": r.files,
+                                                           "copied": r.copied, "skipped": r.skipped,
+                                                           "failed": r.failed, "dests": r.dests,
+                                                           "seconds": r.seconds, "gb": round(r.bytes / 1e9, 2)})
+                self._emit(type="ingest_done", report=self._ingest["report"])
+            except Exception as e:
+                traceback.print_exc()
+                self._ingest.update(status="error", error=str(e))
+                self._emit(type="ingest_error", error=str(e))
+
+        threading.Thread(target=run, daemon=True).start()
+        return {"started": True}
+
+    def ingest_state(self) -> dict | None:
+        return self._ingest
+
+    def ingest_history(self) -> list[dict]:
+        import json
+        d = config.app_support_dir() / "ingest"
+        out = []
+        for f in sorted(d.glob("*.json"), reverse=True)[:20] if d.exists() else []:
+            try:
+                r = json.loads(f.read_text())
+                out.append({"session": r["session"], "card": r["card"]["name"], "project": r["project"], "label": r["label"],
+                            "files": r["files"], "gb": round(r["bytes"] / 1e9, 2), "safe": r["safe_to_format"]})
+            except (OSError, KeyError, ValueError):
+                continue
+        return out
+
+    # ---------- Drives ----------
+
+    def drives(self) -> list[dict]:
+        return [drives.as_dict(d) for d in drives.drives()]
+
+    # ---------- Background jobs (proxies, exports) ----------
+
+    def jobs_status(self) -> dict:
+        all_ = jobs.read_all()
+        running = [{"kind": j.kind, "rel": j.rel, "progress": j.progress, "out": j.out} for j in all_ if j.status == jobs.RUNNING]
+        counts: dict[str, dict] = {}
+        for j in all_:
+            counts.setdefault(j.kind, {}).setdefault(j.status, 0)
+            counts[j.kind][j.status] += 1
+        recent = [{"id": j.id, "kind": j.kind, "rel": j.rel, "status": j.status, "progress": j.progress,
+                   "error": j.error[:160], "out": j.out} for j in all_[-60:]]
+        return {"counts": counts, "running": running, "paused": self._queue.paused, "recent": recent[::-1]}
+
+    def jobs_pause(self) -> dict:
+        self._queue.pause()
+        return self.jobs_status()
+
+    def jobs_resume(self) -> dict:
+        self._queue.resume()
+        return self.jobs_status()
+
+    def jobs_retry(self) -> dict:
+        self._queue.retry_failed()
+        return self.jobs_status()
+
+    def make_proxies(self) -> dict:
+        p = self._require()
+        n = proxies.enqueue(self._queue, Path(p.root), [c.rel for c in p.clips.values() if c.kind == "video"],
+                            settings.load()["proxy_preset"])
+        return {"queued": n}
+
+    # ---------- Export ----------
+
+    def export_presets(self) -> list[dict]:
+        return [{"id": k, "name": v["name"], "mbps": v.get("mbps", 0), "ext": v["extension"]} for k, v in export.presets().items()]
+
+    def _export_items(self, preset: str, folders: list[str] | None, dest: str | None):
+        p = self._require()
+        st = review.load(p)
+        if not dest and execute.read_only_name(p):
+            raise RuntimeError("read-only reference project: choose a destination outside it")
+        return p, export.plan(p, st, preset, Path(dest) if dest else None, folders=folders or None)
+
+    def export_plan(self, preset: str, folders: list[str] | None = None, dest: str | None = None) -> dict:
+        p, items = self._export_items(preset, folders, dest)
+        return {"clips": len(items), "gb": round(export.estimate_bytes(items, preset) / 1e9, 1),
+                "problems": export.check(items, preset), "base": str(items[0].out.parents[1]) if items else "",
+                "folders": [{"key": c.key, "folder": c.folder, "clips": len(c.clips)} for c in (review.load(p).categories if review.load(p) else [])]}
+
+    def start_export(self, preset: str, folders: list[str] | None = None, dest: str | None = None) -> dict:
+        p, items = self._export_items(preset, folders, dest)
+        problems = export.check(items, preset)
+        if problems:
+            raise RuntimeError("; ".join(problems))
+        return {"queued": export.enqueue(self._queue, p, items, preset)}
+
+    # ---------- Accuracy Lab ----------
+
+    def lab_reports(self) -> list[dict]:
+        import json
+        out = []
+        for f in sorted(config.reports_dir().glob("*.json"), key=lambda f: f.stat().st_mtime, reverse=True)[:40]:
+            try:
+                d = json.loads(f.read_text())
+                m, r = d["metrics"], d["run"]
+                out.append({"name": f.stem, "accuracy": m["matched_accuracy"], "f1": m["pairwise"]["f1"], "ari": m["ari"],
+                            "folders": f"{m['folders_pred']}/{m['folders_truth']}", "cost": r.get("cost", 0),
+                            "model": r.get("model", ""), "when": r.get("when", "")})
+            except (OSError, KeyError, ValueError):
+                continue
+        return out
+
+    def lab_report(self, name: str) -> str:
+        f = config.reports_dir() / f"{Path(name).name}.md"
+        return f.read_text() if f.exists() else ""
+
+    def start_eval(self, offline: bool = False) -> dict:
+        p = self._require()
+        opts = self._options(offline=offline)
+
+        def work() -> dict:
+            r = evaluate.run(p, opts, progress=self._progress)
+            m = r["metrics"]
+            return {"name": r["stem"], "accuracy": m["matched_accuracy"], "f1": m["pairwise"]["f1"], "ari": m["ari"],
+                    "cost": r["run"]["cost"]}
+
+        return self._start("eval", work)
+
+    # ---------- Settings, onboarding, help ----------
+
+    def settings(self) -> dict:
+        s = settings.load()
+        return {**s, "key": credentials.masked() if credentials.get_api_key() else "",
+                "proxy_presets": [{"id": k, "name": v["name"]} for k, v in proxies.presets().items()],
+                "export_presets": self.export_presets(), "ffmpeg": bool(config.find_tool("ffmpeg")),
+                "models": [{"id": k, "label": v["label"]} for k, v in cost.MODELS.items()]}
+
+    def save_settings(self, changes: dict) -> dict:
+        settings.save(changes)
+        return self.settings()
+
+    def set_api_key(self, key: str) -> dict:
+        """Straight from the password field to the Keychain; never logged or written to a file."""
+        if not key or len(key.strip()) < 20:
+            raise ValueError("that does not look like an API key")
+        credentials.set_api_key(key)
+        return {"key": credentials.masked()}
+
+    def delete_api_key(self) -> dict:
+        credentials.delete_api_key()
+        return {"key": ""}
+
+    def open_link(self, kind: str) -> dict:
+        s = settings.load()
+        if kind == "mail":
+            from urllib.parse import quote
+            body = quote(f"HyperShutter {__version__}\nmacOS\n\nWhat happened:\n")
+            url = f"mailto:{s['support_email']}?subject={quote('HyperShutter support')}&body={body}"
+        elif kind == "issues":
+            url = s["issues_url"]
+        else:
+            raise ValueError(kind)
+        subprocess.run(["open", url], check=False)
+        return {"opened": url}
+
+    def export_diagnostics(self) -> dict:
+        """Settings, versions and logs only: never footage, frames, transcripts or the API key."""
+        import json
+        import platform
+        import zipfile
+        out = Path.home() / "Desktop" / f"HyperShutter diagnostics {time.strftime('%Y-%m-%d %H%M')}.zip"
+        s = settings.load()
+        with zipfile.ZipFile(out, "w", zipfile.ZIP_DEFLATED) as z:
+            z.writestr("about.json", json.dumps({"version": __version__, "macos": platform.mac_ver()[0],
+                                                 "python": platform.python_version(),
+                                                 "ffmpeg": config.find_tool("ffmpeg") or "missing"}, indent=1))
+            z.writestr("settings.json", json.dumps(s, indent=1))
+            z.writestr("jobs.json", json.dumps([{"kind": j.kind, "status": j.status, "error": j.error[:300]}
+                                                for j in jobs.read_all()[-200:]], indent=1))
+            log = config.app_support_dir() / "hypershutter.log"
+            if log.exists():
+                z.write(log, "hypershutter.log")
+        return {"path": str(out)}
 
 
 def _osascript_folder() -> str | None:

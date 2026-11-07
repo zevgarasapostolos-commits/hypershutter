@@ -1,4 +1,5 @@
-/* HyperShutter screens: Projects (home), Scan & Analyze, Review. */
+/* HyperShutter core screens: Projects (home), Scan & Analyze, Review. The other screens
+   (Ingest, Export, Drives, Lab, Settings, …) live in screens.js and register in HS.screens. */
 (function () {
   const HS = window.HS;
   const t = (k, v) => HS.t(k, v);
@@ -70,7 +71,10 @@
 
   // ---------------- navigation ----------------
 
+  HS.screens = HS.screens || {};
+
   function canGo(v) {
+    if (HS.screens[v] && HS.screens[v].canGo) return HS.screens[v].canGo(S);
     if (v === "analyze") return !!S.project;
     if (v === "review") return !!(S.project && S.project.has_structure);
     return true;
@@ -88,13 +92,15 @@
     S.view = v;
     updateNav();
     if (v === "review" && !S.review) S.review = await call("review");
+    if (HS.screens[v] && HS.screens[v].load) await HS.screens[v].load();
     render();
   }
 
   function render() {
     updateNav();
     view.scrollTop = 0;
-    if (S.view === "home") renderHome();
+    if (HS.screens[S.view]) HS.screens[S.view].render();
+    else if (S.view === "home") renderHome();
     else if (S.view === "analyze") renderAnalyze();
     else renderReview();
   }
@@ -759,10 +765,23 @@
 
   // ---------------- start ----------------
 
+  HS.ui = { t, $, $$, esc, call, toast, ask, view, S, go: (v) => go(v), render: () => render(), updateNav: () => updateNav() };
+  HS.go = (v) => go(v);
+
   document.addEventListener("keydown", (e) => {
     if (e.key === "Escape" && S.sel.size && S.view === "review") {
       S.sel.clear();
       renderPanel();
+    }
+    if ((e.metaKey || e.ctrlKey) && !e.altKey && !e.shiftKey) {
+      const items = $$(".nav-item").filter((b) => !b.disabled);
+      if (/^[1-9]$/.test(e.key) && items[+e.key - 1]) {       // Cmd-1 … Cmd-9: the screens in sidebar order
+        e.preventDefault();
+        go(items[+e.key - 1].dataset.view);
+      } else if (e.key === ",") {                               // Cmd-, Settings, as in every Mac app
+        e.preventDefault();
+        go("settings");
+      }
     }
   });
   $$(".nav-item").forEach((b) => (b.onclick = () => go(b.dataset.view)));
@@ -780,6 +799,7 @@
     S.info = await call("info");
     $("#version").textContent = "v" + S.info.version;
     S.recent = await call("recent");
+    if (!S.info.onboarded && HS.screens.onboarding) return go("onboarding");
     render();
   })();
 })();
