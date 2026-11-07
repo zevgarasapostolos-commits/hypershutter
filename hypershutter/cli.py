@@ -14,7 +14,7 @@ from hypershutter.core.media import fmt_duration, fmt_offset
 from hypershutter.core.project import Project
 
 # Subcommands still to be built, with the milestone that delivers them.
-PLANNED: dict[str, str] = {"ingest": "T3", "proxies": "T4", "drives": "T4", "export": "T6"}
+PLANNED: dict[str, str] = {"proxies": "T4", "drives": "T4", "export": "T6"}
 
 
 def cmd_doctor(_args) -> int:
@@ -350,6 +350,54 @@ def cmd_undo(args) -> int:
     return 0 if u["status"] == "undone" else 1
 
 
+def cmd_ingest(args) -> int:
+    from hypershutter.core import cards, ingest
+    if args.list or not args.card:
+        found = cards.detect()
+        if not found:
+            print("no cards found under /Volumes")
+        for c in found:
+            print(f"{c.path}  {c.kind:10s} {len(c.media):4d} clips  {c.bytes / 1e9:7.2f} GB  "
+                  f"{c.camera or c.identity}" + (f"  label: {c.label}" if c.label else ""))
+        return 0
+    card = cards.read_card(Path(args.card).expanduser())
+    label = args.label or card.label
+    if not label:
+        print("give the source a label once, e.g. --label 'cam apos' (it is remembered for this camera)")
+        return 2
+    if not args.project or not args.dest:
+        print("choose --project and at least one --dest")
+        return 2
+    dests = [Path(d).expanduser() for d in args.dest]
+    jobs = ingest.plan(card, label)
+    print(f"{card.kind} card {card.name} ({card.camera or card.identity}): {len(jobs)} files, "
+          f"{card.bytes / 1e9:.2f} GB -> '{args.project}/{label}/' on {len(dests)} drive(s)")
+    problems = ingest.preflight(card, jobs, dests, args.project, args.proxy)
+    for pr in problems:
+        print(f"  blocked: {pr}")
+    if problems or args.dry_run:
+        return 1 if problems else 0
+    last = [0.0]
+
+    def show(ev: dict) -> None:
+        if ev["phase"] != "done" and time.time() - last[0] < 2:
+            return
+        last[0] = time.time()
+        parts = " | ".join(f"{Path(d['root']).parent.name}: {d['written'] / 1e9:.2f}/{d['total'] / 1e9:.2f} GB "
+                           f"{d['mb_s']} MB/s" + (f" ETA {d['eta_s']}s" if d.get("eta_s") else "") for d in ev["dests"])
+        print(f"  {ev['phase']} {ev['done']}/{ev['total']}  {parts}", flush=True)
+
+    r = ingest.ingest(card, args.project, label, dests, args.proxy, progress=show)
+    for d in r.dests:
+        print(f"  {d['root']}: {d['verified']}/{r.files} verified, write {d['write_mb_s']} MB/s, "
+              f"verify {d['verify_mb_s']} MB/s, MHL {Path(d['mhl']).name}")
+    for f in r.failed:
+        print(f"  FAILED {f['dest']}: {f['file']} ({f['why']})")
+    print("SAFE TO FORMAT: every file is verified on every drive" if r.safe_to_format
+          else "NOT safe to format: keep the card and check the failed files")
+    return 0 if r.safe_to_format else 1
+
+
 def cmd_key(args) -> int:
     import getpass
 
@@ -442,6 +490,17 @@ def main(argv: list[str] | None = None) -> int:
     sp.add_argument("--density", help="frame-density comparison instead, e.g. 4,2,1 (seconds per frame)")
     sp.add_argument("--subset", type=int, default=120, help="clips in the density subset")
     sp.set_defaults(func=cmd_ablation)
+
+    sp = sub.add_parser("ingest", help="copy a card to several drives at once, verified by checksum (the card is only read)")
+    sp.add_argument("card", nargs="?", help="the card (a mounted volume) or a folder copied from one")
+    sp.add_argument("--list", action="store_true", help="list the cards found under /Volumes")
+    sp.add_argument("--project", help="event folder name on the destination drives, e.g. '074 Γ15-11-2026'")
+    sp.add_argument("--label", help="source label, e.g. 'cam apos' (remembered per camera)")
+    sp.add_argument("--dest", action="append", default=[], help="a destination drive or folder (repeat for several)")
+    sp.add_argument("--proxy", default="prores_proxy", choices=["prores_proxy", "h264", "none"],
+                    help="proxy preset, for the space check")
+    sp.add_argument("--dry-run", action="store_true", help="only show the plan and the space check")
+    sp.set_defaults(func=cmd_ingest)
 
     sp = sub.add_parser("key", help="store the Anthropic API key in the macOS Keychain")
     sp.add_argument("action", choices=["set", "status", "delete"], nargs="?", default="status")
