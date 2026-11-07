@@ -113,4 +113,21 @@ RESULTS
 
 ## 4. Frame density
 
-DENSITY
+Subset: 136 wedding clips. Every folder is represented in proportion, spread over the day, and
+every long main-camera take is included. Signals: time + camera + image. 3 repeats per density.
+
+| One frame every | Frames | Matched accuracy (%) | Pairwise F1 | ARI | Boundary F1 | Pass-1 cost |
+|---|---|---|---|---|---|---|
+| 4 s | 3,936 | 92.7 ± 1.9 | 0.871 ± 0.059 | 0.858 ± 0.064 | 0.913 ± 0.014 | $4.36 |
+| **2 s (default)** | 7,572 | **94.4 ± 0.4** | **0.912 ± 0.006** | **0.904 ± 0.007** | **0.936 ± 0.012** | ≈ $6.70 * |
+| 1 s | 14,048 | 93.4 ± 0.7 | 0.901 ± 0.025 | 0.891 ± 0.027 | 0.935 ± 0.010 | $7.03 |
+
+\* The 2 s descriptions came from the full-event run: the subset's share of that run, by sheet count.
+
+- **1 frame every 2 s is the sweet spot.** It gives the best accuracy and the smallest spread.
+- **Fewer frames.** At 1 frame every 4 s, accuracy drops by 1.7 points and the repeats disagree
+  more: short cutaways get only 1–2 frames, so their content is guessed.
+- **More frames do not help.** 1 frame per second doubles the frames and costs more, with no
+  gain. A request carries at most 20 sheets (480 frames), so long takes are subsampled anyway.
+  The extra frames of short clips mostly repeat what the 2 s frames already show.
+- **Time.** Extracting the extra frames for the 1 s subset took 26 minutes, against about 6 for 4 s.
