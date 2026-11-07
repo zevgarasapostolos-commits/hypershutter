@@ -154,13 +154,14 @@ Matched accuracy (%), mean ± sd over 3–5 repeats; details and the other metri
 | offline: time gaps + sound | 60.6 | 56.5 | 40.6 |
 | time | 73.2 ± 1.1 | 70.7 ± 6.6 | 60.5 ± 4.3 |
 | time + camera | 75.2 ± 0.5 | 73.9 ± 12.6 | 62.4 ± 2.2 |
-| time + camera + sound | 75.6 ± 0.7 | – | 63.9 ± 2.1 |
+| time + camera + sound | 75.6 ± 0.7 | 75.0 ± 5.4 | 63.9 ± 2.1 |
 | time + camera + image | 93.2 ± 1.1 | 97.8 ± 0.0 | 95.7 ± 0.3 |
-| all signals | 94.1 ± 0.0 | – | 94.2 ± 1.1 |
+| all signals | **94.1 ± 0.0** | **98.4 ± 0.2** | 94.2 ± 1.1 |
 
-The image is the decisive signal. Sound helps without the API (+10 to +20 points), and next to the
-pictures its effect is within the run-to-run spread. Frame density: one frame every 2 s (94.4%)
-beats every 4 s (92.7%) and every 1 s (93.4%) on a 136-clip subset. "–": still to run.
+The image is the decisive signal. Sound helps without the API (+10 to +20 points). Next to the
+pictures it adds +0.9 and +0.6 points on the wedding and on 073, and −0.4 to −1.5 on 071; all of
+that is within the run-to-run spread. Frame density: one frame every 2 s (94.4%) beats every 4 s
+(92.7%) and every 1 s (93.4%) on a 136-clip subset.
 
 ### Ingest benchmark
 

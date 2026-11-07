@@ -117,10 +117,10 @@ main-camera takes as ΡΟΗ, same-camera smoothing. Without the camera signal th
 | offline: time gaps + sound | 60.6 | 56.5 | 40.6 |
 | time | 73.2 ± 1.1 | 70.7 ± 6.6 | 60.5 ± 4.3 |
 | time + camera | 75.2 ± 0.5 | 73.9 ± 12.6 | 62.4 ± 2.2 |
-| time + camera + sound | 75.6 ± 0.7 | – | 63.9 ± 2.1 |
+| time + camera + sound | 75.6 ± 0.7 | 75.0 ± 5.4 | 63.9 ± 2.1 |
 | time + camera + image | 93.2 ± 1.1 | 97.8 ± 0.0 | 95.7 ± 0.3 |
-| all (sound in pass 2 only) | 93.7 ± 0.5 | – | 95.3 ± 0.9 |
-| all | 94.1 ± 0.0 | – | 94.2 ± 1.1 |
+| all (sound in pass 2 only) | 93.7 ± 0.5 | 98.2 ± 0.2 | 95.3 ± 0.9 |
+| all | 94.1 ± 0.0 | 98.4 ± 0.2 | 94.2 ± 1.1 |
 
 **Pairwise F1** (mean ± sd over repeats; n = repeats)
 
@@ -130,10 +130,10 @@ main-camera takes as ΡΟΗ, same-camera smoothing. Without the camera signal th
 | offline: time gaps + sound | 0.613 | 0.486 | 0.327 |
 | time | 0.696 ± 0.021 | 0.716 ± 0.054 | 0.554 ± 0.034 |
 | time + camera | 0.701 ± 0.047 | 0.746 ± 0.128 | 0.567 ± 0.006 |
-| time + camera + sound | 0.759 ± 0.013 | – | 0.551 ± 0.039 |
+| time + camera + sound | 0.759 ± 0.013 | 0.750 ± 0.065 | 0.551 ± 0.039 |
 | time + camera + image | 0.893 ± 0.030 | 0.963 ± 0.000 | 0.917 ± 0.007 |
-| all (sound in pass 2 only) | 0.909 ± 0.004 | – | 0.908 ± 0.012 |
-| all | 0.911 ± 0.000 | – | 0.890 ± 0.019 |
+| all (sound in pass 2 only) | 0.909 ± 0.004 | 0.971 ± 0.004 | 0.908 ± 0.012 |
+| all | 0.911 ± 0.000 | 0.973 ± 0.004 | 0.890 ± 0.019 |
 
 **Adjusted Rand Index** (mean ± sd over repeats; n = repeats)
 
@@ -143,10 +143,10 @@ main-camera takes as ΡΟΗ, same-camera smoothing. Without the camera signal th
 | offline: time gaps + sound | 0.568 | 0.439 | 0.279 |
 | time | 0.656 ± 0.023 | 0.687 ± 0.060 | 0.499 ± 0.036 |
 | time + camera | 0.664 ± 0.051 | 0.721 ± 0.143 | 0.514 ± 0.008 |
-| time + camera + sound | 0.726 ± 0.015 | – | 0.490 ± 0.049 |
+| time + camera + sound | 0.726 ± 0.015 | 0.726 ± 0.071 | 0.490 ± 0.049 |
 | time + camera + image | 0.881 ± 0.033 | 0.960 ± 0.000 | 0.907 ± 0.007 |
-| all (sound in pass 2 only) | 0.898 ± 0.004 | – | 0.897 ± 0.013 |
-| all | 0.901 ± 0.000 | – | 0.876 ± 0.021 |
+| all (sound in pass 2 only) | 0.898 ± 0.004 | 0.969 ± 0.004 | 0.897 ± 0.013 |
+| all | 0.901 ± 0.000 | 0.971 ± 0.004 | 0.876 ± 0.021 |
 
 **Boundary F1** (mean ± sd over repeats; n = repeats)
 
@@ -156,13 +156,10 @@ main-camera takes as ΡΟΗ, same-camera smoothing. Without the camera signal th
 | offline: time gaps + sound | 0.477 | 0.523 | 0.583 |
 | time | 0.279 ± 0.007 | 0.582 ± 0.133 | 0.568 ± 0.016 |
 | time + camera | 0.531 ± 0.008 | 0.736 ± 0.128 | 0.697 ± 0.013 |
-| time + camera + sound | 0.560 ± 0.056 | – | 0.644 ± 0.020 |
+| time + camera + sound | 0.560 ± 0.056 | 0.699 ± 0.014 | 0.644 ± 0.020 |
 | time + camera + image | 0.812 ± 0.015 | 0.932 ± 0.000 | 0.938 ± 0.017 |
-| all (sound in pass 2 only) | 0.816 ± 0.006 | – | 0.913 ± 0.016 |
-| all | 0.817 ± 0.000 | – | 0.927 ± 0.008 |
-
-"–": the sound conditions of baptism 073 are still to run. The API credit ran out before their pass 1
-(see the README status).
+| all (sound in pass 2 only) | 0.816 ± 0.006 | 0.945 ± 0.006 | 0.913 ± 0.016 |
+| all | 0.817 ± 0.000 | 0.952 ± 0.000 | 0.927 ± 0.008 |
 
 ### What each signal adds
 
@@ -183,10 +180,11 @@ main-camera takes as ΡΟΗ, same-camera smoothing. Without the camera signal th
    - In the offline fallback, sound adds +15, +10 and +20 points on the three events (wedding
      45 → 61%, 073 46 → 57%, 071 21 → 41%). It finds the ceremonies (chanting, liturgy) and the
      party (music with a crowd).
-   - With time and camera but no pictures it adds +0.4 / +1.5 points of accuracy, and on the
-     wedding +0.06 pairwise F1.
-   - With pictures it moves accuracy by +0.9 (wedding) and −0.4 to −1.5 (071), all within the
-     run-to-run spread. On the wedding it made the result fully repeatable: 94.1% in all three runs.
+   - With time and camera but no pictures it adds +0.4 / +1.1 / +1.5 points of accuracy (wedding,
+     073, 071), and on the wedding +0.06 pairwise F1.
+   - With pictures it moves accuracy by +0.9 (wedding), +0.6 (073) and −0.4 to −1.5 (071). The
+     gains are small and within the run-to-run spread, but they point the same way on the two events
+     with the cleaner sound. On the wedding it made the result fully repeatable: 94.1% in all three runs.
    - Hearing the sound in pass 1 too (prompt d4), rather than only in pass 2, made no consistent
      difference.
 
@@ -213,8 +211,8 @@ Two more runs of each condition kept their misplaced clips.
   and $6.02 for 071. Pass 1 dominates.
 - **With sound in pass 1**, the wedding costs $13.86 + pass 2.
 - **A pass-2-only repeat** costs $0.25–0.70.
-- **The whole ablation study** cost about $56: $31 of pass 1 (the sound and density variants) and
-  $25 of pass-2 repeats. That covers all conditions and repeats on the three events, plus the
+- **The whole ablation study** cost about $67: $39 of pass 1 (the sound and density variants) and
+  $28 of pass-2 repeats. That covers all conditions and repeats on the three events, plus the
   density study.
 
 
