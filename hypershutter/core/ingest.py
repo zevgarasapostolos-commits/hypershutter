@@ -275,6 +275,8 @@ def ingest(card: Card, project: str, label: str, dests: list[Path], proxy: str =
     if problems:
         raise OSError("; ".join(problems))
     cards.remember(card.identity, label.strip())
+    from hypershutter.core import execute
+    execute.remember_copies([Path(d) / project for d in dests])
     started = datetime.now()
     session = started.strftime("%Y%m%d-%H%M%S")
     t0 = time.time()

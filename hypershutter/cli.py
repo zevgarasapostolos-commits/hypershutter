@@ -316,6 +316,10 @@ def cmd_apply(args) -> int:
               "(Link Media → Locate → the event folder, Search subfolders + Relink others automatically)")
     if not pl.ok:
         return 1
+    mirrors = [Path(m).expanduser() for m in args.mirror] if args.mirror else (None if not args.no_mirrors else [])
+    others = execute.copies(p) if mirrors is None else mirrors
+    if others:
+        print(f"  the same organization on {len(others)} more copies: " + ", ".join(str(o) for o in others))
     if args.apply and pl.edited and not args.relink:
         print("refused: add --relink to confirm you will relink those Premiere files after the move")
         return 1
@@ -326,9 +330,10 @@ def cmd_apply(args) -> int:
     if args.backup:
         r = execute.backup(p, Path(args.backup), progress=_progress)
         print(f"backup: {r['verified']} files verified in {r['dest']} ({r['copied']} copied)")
-    j = execute.apply(p, st, pl, preset, progress=_progress, extras=index.generated_files, force=args.force)
-    print(f"moved {sum(m['status'] == 'moved' for m in j['moves'])} files; wrote {len(j['files_created'])} files "
-          f"(index + contact sheets). Journal {j['id']} in {folder / execute.JOURNAL_DIR}.")
+    r = execute.apply_everywhere(p, st, preset, mirrors=mirrors, rename=args.rename, progress=_progress,
+                                 extras=index.generated_files, force=args.force)
+    for c in r["copies"]:
+        print(f"{c['root']}: moved {c['moved']} files ({c['status']}), journal {c['journal']}")
     return 0
 
 
@@ -344,11 +349,12 @@ def cmd_undo(args) -> int:
     if not args.yes and input("Move every file back? [y/N] ").strip().lower() not in ("y", "yes", "ν", "ναι"):
         print("cancelled")
         return 1
-    u = execute.undo(p, j, progress=_progress)
-    print(f"{u['status']}: {sum(m['status'] == 'undone' for m in u['moves'])} files back in place")
-    for prob in u.get("problems", []):
-        print(f"  problem: {prob}")
-    return 0 if u["status"] == "undone" else 1
+    u = execute.undo_everywhere(p, None if not args.no_mirrors else [], progress=_progress)
+    for c in u["copies"]:
+        print(f"{c['root']}: {c['status']}")
+        for prob in c["problems"]:
+            print(f"  problem: {prob}")
+    return 0 if all(c["status"] == "undone" for c in u["copies"]) else 1
 
 
 def cmd_ingest(args) -> int:
@@ -583,10 +589,14 @@ def main(argv: list[str] | None = None) -> int:
     sp.add_argument("--rename", metavar="PATTERN", help="rename files, e.g. '{num}_{n:03d}_{name}' (off by default)")
     sp.add_argument("--force", action="store_true", help="allow an event that looks organized by hand")
     sp.add_argument("--relink", action="store_true", help="the event has Premiere files: I will relink after the move")
+    sp.add_argument("--mirror", action="append", default=[], metavar="DIR",
+                    help="another drive's copy of this event (default: the copies ingest made)")
+    sp.add_argument("--no-mirrors", action="store_true", help="organize only this copy")
     sp.set_defaults(func=cmd_apply)
 
     sp = sub.add_parser("undo", help="move every file of the last apply back to where it was")
     sp.add_argument("folder"); sp.add_argument("--yes", action="store_true")
+    sp.add_argument("--no-mirrors", action="store_true", help="undo only this copy")
     sp.set_defaults(func=cmd_undo)
 
     sp = sub.add_parser("app", help="open the HyperShutter window (Home, Scan & Analyze, Review)")

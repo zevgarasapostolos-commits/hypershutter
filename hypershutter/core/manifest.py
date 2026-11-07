@@ -28,6 +28,7 @@ class Entry:
     status: str              # copied | verified | failed
     source: str = ""         # card identity + path on the card
     when: str = ""
+    now: str = ""            # where the file is now, after the event was organized (else rel)
 
 
 def _now() -> str:
@@ -61,10 +62,32 @@ class Manifest:
             os.replace(tmp, self.path)
 
     def verified(self, rel: str, size: int) -> bool:
-        """Already ingested and verified, and the file is still there with that size."""
+        """Already ingested and verified, and the file is still there (maybe organized) with that size."""
         e = self.entries.get(rel)
-        f = self.dir / rel
-        return bool(e and e.status == VERIFIED and e.size == size and f.exists() and f.stat().st_size == size)
+        if not e:
+            return False
+        f = self.dir / (e.now or e.rel)
+        return e.status == VERIFIED and e.size == size and f.exists() and f.stat().st_size == size
+
+    def where(self, rel_now: str) -> Entry | None:
+        """The entry of the file that is now at `rel_now`."""
+        for e in self.entries.values():
+            if (e.now or e.rel) == rel_now:
+                return e
+        return None
+
+    def relocate(self, old: str, new: str) -> None:
+        """A file moved (organize / undo): remember where it is, so the card is not copied again."""
+        e = self.where(old)
+        if e is not None:
+            with self._lock:
+                e.now = "" if new == e.rel else new
+                self._dirty = True
+
+    def save_if_any(self) -> None:
+        if getattr(self, "_dirty", False):
+            self.save()
+            self._dirty = False
 
 
 def write_mhl(path: Path, root: Path, entries: list[Entry], started: datetime, finished: datetime) -> Path:

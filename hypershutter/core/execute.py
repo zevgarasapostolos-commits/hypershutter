@@ -24,7 +24,7 @@ from datetime import datetime, timedelta
 from pathlib import Path
 from typing import Callable
 
-from hypershutter.core import checks, config, store
+from hypershutter.core import checks, config, manifest, proxies, store
 from hypershutter.core.greeklish import safe_folder_name
 from hypershutter.core.project import Project
 from hypershutter.core.structure import Structure
@@ -42,7 +42,7 @@ class Move:
     src: str                  # paths relative to the event folder
     dst: str
     clip: str
-    kind: str                 # clip | sidecar
+    kind: str                 # clip | sidecar | proxy
     size: int
     status: str = "planned"   # planned | moved | undone | missing
 
@@ -152,8 +152,23 @@ def plan(p: Project, st: Structure, rename: str | None = None) -> Plan:
                 pl.conflicts.append(f"{dst}: already exists, will not overwrite")
                 continue
             pl.moves.append(Move(rel, dst, cid, kind, src_path.stat().st_size))
+            if kind == "clip":
+                px = proxies.proxy_for(root, rel)
+                if px:                                  # the proxy follows its clip
+                    px_rel = str(px.relative_to(root))
+                    px_dst = str(proxies.proxy_path(Path(""), dst))
+                    if (root / px_dst).exists():
+                        pl.conflicts.append(f"{px_dst}: already exists, will not overwrite")
+                    else:
+                        pl.moves.append(Move(px_rel, px_dst, cid, "proxy", px.stat().st_size))
     pl.edited = edited_projects(root, {os.path.basename(m.src) for m in pl.moves if m.kind == "clip"})
-    for folder in sorted({m.dst.split("/", 1)[0] for m in pl.moves}):
+    needed = set()
+    for m in pl.moves:
+        parent = Path(m.dst).parent
+        while str(parent) not in (".", ""):
+            needed.add(str(parent))
+            parent = parent.parent
+    for folder in sorted(needed, key=lambda s: (s.count("/"), s)):
         target = root / folder
         if target.exists() and not target.is_dir():
             pl.conflicts.append(f"{folder}: a file with this name is in the way")
@@ -201,14 +216,18 @@ def save_journal(p: Project, j: dict) -> None:
 
 
 def journals(p: Project) -> list[dict]:
-    """Every run for this event, newest first."""
+    """Every run for this copy of the event (this drive), newest first. Copies of the same event on
+    other drives share the Application Support folder, so its journals are matched by root; the
+    journal inside the event folder always belongs to it (also after the drive re-mounts)."""
     out = []
     d = _journal_dir(p)
     for f in d.glob("*.json"):
         try:
-            out.append(json.loads(f.read_text()))
+            j = json.loads(f.read_text())
         except (OSError, json.JSONDecodeError):
             continue
+        if _nfc(j.get("root", p.root)) == _nfc(str(p.root)):
+            out.append(j)
     local = Path(p.root) / JOURNAL_DIR / "journal.json"
     if local.exists():
         try:
@@ -245,6 +264,7 @@ def apply(p: Project, st: Structure, pl: Plan, preset: dict, progress: Progress 
         for folder in pl.folders:
             (root / folder).mkdir()
             j["dirs_created"].append(folder)
+        man = manifest.Manifest(root)
         for i, m in enumerate(j["moves"]):
             src, dst = root / m["src"], root / m["dst"]
             if dst.exists():
@@ -253,15 +273,19 @@ def apply(p: Project, st: Structure, pl: Plan, preset: dict, progress: Progress 
                 raise RuntimeError(f"{m['src']} changed size since the plan; stopped")
             os.rename(src, dst)
             m["status"] = "moved"
+            man.relocate(m["src"], m["dst"])
             if progress:
                 progress("move", i + 1, len(j["moves"]))
             if (i + 1) % SAVE_EVERY == 0:
                 save_journal(p, j)
+                man.save_if_any()
     except Exception:
         j["status"] = "failed"
         save_journal(p, j)
+        man.save_if_any()
         _sync_project(p, j)
         raise
+    man.save_if_any()
 
     _sync_project(p, j)
     for d in sorted(set(earlier) - set(pl.folders), key=lambda s: s.count("/"), reverse=True):
@@ -335,12 +359,14 @@ def undo(p: Project, journal: dict | None = None, progress: Progress | None = No
     save_journal(p, j)
     problems = []
     moves = j["moves"]
+    man = manifest.Manifest(root)
     for i, m in enumerate(reversed(moves)):
         src, dst = root / m["src"], root / m["dst"]
         if dst.exists() and not src.exists():
             src.parent.mkdir(parents=True, exist_ok=True)
             os.rename(dst, src)
             m["status"] = "undone"
+            man.relocate(m["dst"], m["src"])
         elif src.exists() and dst.exists():
             problems.append(f"{m['src']} and {m['dst']} both exist; left as they are")
         elif src.exists():
@@ -366,11 +392,104 @@ def undo(p: Project, journal: dict | None = None, progress: Progress | None = No
             pass
     for d in j.get("dirs_removed", []):
         (root / d).mkdir(parents=True, exist_ok=True)
+    man.save_if_any()
     j["status"] = "undone" if not problems else "undone_with_problems"
     j["problems"] = problems
     save_journal(p, j)
     _sync_project(p, j, undo=True)
     return j
+
+
+# ---------------- every copy of the event (multi-drive) ----------------
+
+def _copies_file() -> Path:
+    return config.app_support_dir() / "copies.json"
+
+
+def remember_copies(roots: list[Path]) -> None:
+    """The same event on several drives (from ingest): organize and undo act on all of them."""
+    f = _copies_file()
+    d = json.loads(f.read_text()) if f.exists() else {}
+    for r in roots:
+        key = store.project_id(Path(r))
+        d[key] = sorted({*d.get(key, []), str(r)})
+    f.write_text(json.dumps(d, ensure_ascii=False, indent=1))
+
+
+def copies(p: Project) -> list[Path]:
+    """Other copies of this event that are connected now (same folder name, another drive)."""
+    f = _copies_file()
+    d = json.loads(f.read_text()) if f.exists() else {}
+    here = _nfc(str(Path(p.root)))
+    return [Path(r) for r in d.get(store.project_id(Path(p.root)), []) if _nfc(r) != here and Path(r).is_dir()]
+
+
+def mirror_view(p: Project, root: Path) -> Project:
+    """The project as seen on another drive's copy: same clips at the same places, never saved."""
+    import copy
+    m = copy.deepcopy(p)
+    m.root = str(root)
+    m.save = lambda: None                                   # the project state belongs to the main copy
+    return m
+
+
+def check_same(main: Project, mirror: Project, pl: Plan) -> list[str]:
+    """Before a mirror moves anything: each file to move is there with the same size and the same
+    checksum as on the main drive (from the two ingest manifests, else hashed now)."""
+    from hypershutter.core.ingest import hash_file
+    problems = []
+    ma, mb = manifest.Manifest(Path(main.root)), manifest.Manifest(Path(mirror.root))
+    for m in pl.moves:
+        if m.kind == "proxy":
+            continue
+        a, b = Path(main.root) / m.src, Path(mirror.root) / m.src
+        if not b.exists():
+            problems.append(f"{mirror.root}: {m.src} is missing")
+            continue
+        if b.stat().st_size != m.size:
+            problems.append(f"{mirror.root}: {m.src} has another size")
+            continue
+        ea, eb = ma.where(m.src), mb.where(m.src)
+        if ea and eb and ea.status == eb.status == manifest.VERIFIED:
+            if ea.xxh64 != eb.xxh64:
+                problems.append(f"{mirror.root}: {m.src} differs from the main copy")
+        elif hash_file(a) != hash_file(b):
+            problems.append(f"{mirror.root}: {m.src} differs from the main copy")
+    return problems
+
+
+def apply_everywhere(p: Project, st: Structure, preset: dict, mirrors: list[Path] | None = None,
+                     rename: str | None = None, progress: Progress | None = None,
+                     extras: Callable[[Project, Structure, dict], list[tuple[str, bytes]]] | None = None,
+                     force: bool = False) -> dict:
+    """The same organization on the main copy and on every other copy, so all drives stay identical.
+    Every plan and every checksum is checked first: if one copy has a problem, nothing moves anywhere."""
+    mirrors = [Path(m) for m in (copies(p) if mirrors is None else mirrors)]
+    views = [p] + [mirror_view(p, m) for m in mirrors]
+    plans = [plan(v, st, rename) for v in views]
+    problems = [c for v, pl in zip(views, plans) for c in (f"{v.root}: {x}" for x in pl.conflicts)]
+    for v, pl in zip(views[1:], plans[1:]):
+        problems += check_same(p, v, pl)
+    if problems:
+        raise RuntimeError("not organized anywhere: " + "; ".join(problems[:6]) + (" …" if len(problems) > 6 else ""))
+    out = {"copies": []}
+    for v, pl in zip(views, plans):
+        j = apply(v, st, pl, preset, progress=progress, extras=extras, force=force)
+        out["copies"].append({"root": v.root, "journal": j["id"], "moved": sum(m["status"] == "moved" for m in j["moves"]),
+                              "status": j["status"]})
+    return out
+
+
+def undo_everywhere(p: Project, mirrors: list[Path] | None = None, progress: Progress | None = None) -> dict:
+    mirrors = [Path(m) for m in (copies(p) if mirrors is None else mirrors)]
+    out = {"copies": []}
+    for v in [p] + [mirror_view(p, m) for m in mirrors]:
+        if last_applied(v) is None:
+            continue
+        j = undo(v, progress=progress)
+        out["copies"].append({"root": v.root, "status": j["status"], "problems": j.get("problems", []),
+                              "back": sum(m["status"] == "undone" for m in j["moves"])})
+    return out
 
 
 # ---------------- backup ----------------

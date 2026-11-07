@@ -302,6 +302,7 @@ class Bridge:
         pl = execute.plan(p, st)
         clips = [m for m in pl.moves if m.kind == "clip"]
         return {"blocked": blocked, "moves": len(pl.moves), "clips": len(clips),
+                "copies": [str(c) for c in execute.copies(p)],
                 "sidecars": len(pl.moves) - len(clips), "new_folders": len(pl.folders),
                 "folders": len({m.dst.split("/", 1)[0] for m in pl.moves}), "in_place": pl.in_place,
                 "unassigned": len(pl.unassigned), "conflicts": pl.conflicts, "edited": pl.edited,
@@ -328,10 +329,10 @@ class Bridge:
             result = {}
             if backup_dest:
                 result["backup"] = execute.backup(p, Path(backup_dest), progress=self._progress)
-            j = execute.apply(p, st, pl, config.load_preset(p.event_type), progress=self._progress,
-                              extras=index.generated_files)
-            result.update(moved=sum(m["status"] == "moved" for m in j["moves"]), files=len(j["files_created"]),
-                          journal=j["id"], last=self._last_run())
+            r = execute.apply_everywhere(p, st, config.load_preset(p.event_type), progress=self._progress,
+                                         extras=index.generated_files)
+            main = r["copies"][0]
+            result.update(moved=main["moved"], journal=main["journal"], copies=r["copies"], last=self._last_run())
             return result
 
         return self._start("apply", work)
@@ -342,9 +343,10 @@ class Bridge:
             raise RuntimeError("nothing to undo")
 
         def work() -> dict:
-            j = execute.undo(p, progress=self._progress)
-            return {"status": j["status"], "back": sum(m["status"] == "undone" for m in j["moves"]),
-                    "problems": j.get("problems", [])}
+            u = execute.undo_everywhere(p, progress=self._progress)
+            main = u["copies"][0] if u["copies"] else {"status": "undone", "problems": [], "back": 0}
+            return {"status": main["status"], "back": main["back"], "copies": u["copies"],
+                    "problems": [x for c in u["copies"] for x in c["problems"]]}
 
         return self._start("undo", work)
 
