@@ -1,0 +1,12 @@
+# Small proxies for a laptop or for sending: H.264 720p.
+name: H.264 720p
+container: mov
+width: 1280
+video:
+  encoder: h264_videotoolbox
+  args: ["-b:v", "5M", "-pix_fmt", "yuv420p"]
+  fallback: libx264
+  fallback_args: ["-crf", "23", "-preset", "veryfast", "-pix_fmt", "yuv420p"]
+audio:
+  args: ["-c:a", "aac", "-b:a", "192k"]
+size_ratio: 0.06

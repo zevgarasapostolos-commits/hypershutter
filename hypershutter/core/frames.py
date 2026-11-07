@@ -61,7 +61,11 @@ def frame_dir(clip: Clip, settings: FrameSettings) -> Path:
 
 
 def source_path(root: Path, clip: Clip) -> Path:
-    """DJI .LRF proxies decode much faster and show the same frames."""
+    """A HyperShutter proxy or a DJI .LRF decodes much faster and shows the same frames."""
+    from hypershutter.core import proxies
+    px = proxies.proxy_for(root, clip.rel)
+    if px:
+        return px
     for s in clip.sidecars:
         if s.lower().endswith(".lrf"):
             return root / s

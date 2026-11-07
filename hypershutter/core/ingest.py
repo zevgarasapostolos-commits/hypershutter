@@ -261,9 +261,11 @@ def _copy(job: Job, targets: list[tuple[DestState, Path]], on_bytes: Callable[[D
 
 def ingest(card: Card, project: str, label: str, dests: list[Path], proxy: str = "prores_proxy",
            retries: int = 2, progress: Progress | None = None,
+           on_verified: Callable[[Path, str], None] | None = None,
            _corrupt: Callable[[Path], None] | None = None) -> Report:
     """Copy and verify every file of the card to `<dest>/<project>/<label>/` on every destination.
-    `_corrupt` is a test hook that damages a copy right after it is written."""
+    `on_verified(project folder, rel)` fires for each file verified on the first destination
+    (the proxy queue listens there). `_corrupt` is a test hook that damages a copy after writing."""
     if not label.strip() or "/" in label:
         raise ValueError("the source label must be a plain folder name, e.g. 'cam apos'")
     if not dests:
@@ -298,6 +300,8 @@ def ingest(card: Card, project: str, label: str, dests: list[Path], proxy: str =
     todo: list[tuple[Job, list[DestState]]] = []
     for j in jobs:
         need = [s for s in states if not s.manifest.verified(j.rel, j.size)]
+        if on_verified and states[0] not in need:        # verified in an earlier session: proxy if missing
+            on_verified(states[0].root, j.rel)
         if need:
             todo.append((j, need))
             for s in need:
@@ -333,6 +337,8 @@ def ingest(card: Card, project: str, label: str, dests: list[Path], proxy: str =
             s.manifest.set(j.rel, j.size, j.xxh64, VERIFIED if ok else FAILED, j.source)
             if ok:
                 s.verified_bytes += j.size
+                if on_verified and s is states[0]:
+                    on_verified(s.root, j.rel)
             else:
                 bad.append(j)
         s.verify_seconds += time.time() - tv
@@ -358,6 +364,8 @@ def ingest(card: Card, project: str, label: str, dests: list[Path], proxy: str =
                 s.failed.append(f"{j.rel}: the card file read differently twice")
             ok = j.xxh64 == before and hash_file(s.root / j.rel) == j.xxh64
             s.manifest.set(j.rel, j.size, j.xxh64, VERIFIED if ok else FAILED, j.source)
+            if ok and on_verified and s is states[0]:
+                on_verified(s.root, j.rel)
             if not ok:
                 bad.setdefault(i, []).append(j)
         for s in states:

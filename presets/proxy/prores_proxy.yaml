@@ -1,0 +1,12 @@
+# Default proxy: what Premiere's "Attach Proxies" expects from a 4K wedding camera.
+name: ProRes Proxy 1080p
+container: mov
+width: 1920
+video:
+  encoder: prores_videotoolbox      # Apple silicon ProRes engine
+  args: ["-profile:v", "proxy"]
+  fallback: prores_ks
+  fallback_args: ["-profile:v", "0"]
+audio:
+  args: ["-c:a", "pcm_s16le"]
+size_ratio: 0.35                    # proxy size / 4K source size, for space checks

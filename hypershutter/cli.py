@@ -5,6 +5,7 @@ from __future__ import annotations
 import argparse
 import json
 import sys
+import time
 from datetime import timedelta
 from pathlib import Path
 
@@ -14,7 +15,7 @@ from hypershutter.core.media import fmt_duration, fmt_offset
 from hypershutter.core.project import Project
 
 # Subcommands still to be built, with the milestone that delivers them.
-PLANNED: dict[str, str] = {"proxies": "T4", "drives": "T4", "export": "T6"}
+PLANNED: dict[str, str] = {"export": "T6"}
 
 
 def cmd_doctor(_args) -> int:
@@ -387,7 +388,14 @@ def cmd_ingest(args) -> int:
                            f"{d['mb_s']} MB/s" + (f" ETA {d['eta_s']}s" if d.get("eta_s") else "") for d in ev["dests"])
         print(f"  {ev['phase']} {ev['done']}/{ev['total']}  {parts}", flush=True)
 
-    r = ingest.ingest(card, args.project, label, dests, args.proxy, progress=show)
+    q = None
+    if args.proxy != "none" and not args.no_proxies:
+        from hypershutter.core import proxies
+        q = proxies.queue()
+        q.start()                                   # background priority, while the card copies
+        print(f"  proxies ({args.proxy}) start as soon as each clip is verified on {dests[0]}")
+    on_verified = (lambda root, rel: proxies.enqueue(q, root, [rel], args.proxy)) if q else None
+    r = ingest.ingest(card, args.project, label, dests, args.proxy, progress=show, on_verified=on_verified)
     for d in r.dests:
         print(f"  {d['root']}: {d['verified']}/{r.files} verified, write {d['write_mb_s']} MB/s, "
               f"verify {d['verify_mb_s']} MB/s, MHL {Path(d['mhl']).name}")
@@ -395,7 +403,57 @@ def cmd_ingest(args) -> int:
         print(f"  FAILED {f['dest']}: {f['file']} ({f['why']})")
     print("SAFE TO FORMAT: every file is verified on every drive" if r.safe_to_format
           else "NOT safe to format: keep the card and check the failed files")
+    if q:
+        print("  finishing proxies (Ctrl+C stops; they resume next time) …", flush=True)
+        q.wait("proxy")
+        q.stop()
+        c = q.counts("proxy")
+        print(f"  proxies: {c.get('done', 0)} done, {c.get('failed', 0)} failed")
     return 0 if r.safe_to_format else 1
+
+
+def cmd_proxies(args) -> int:
+    from hypershutter.core import jobs, proxies
+    q = proxies.queue(workers=args.workers)
+    if args.status or not args.folder:
+        for kind in ("proxy",):
+            print(kind, q.counts(kind))
+        for j in [j for j in jobs.read_all() if j.status == jobs.FAILED][-10:]:
+            print(f"  failed: {j.rel} ({j.error[:120]})")
+        return 0
+    folder = Path(args.folder).expanduser()
+    p = _load_or_scan(folder, rescan=False, workers=6)
+    rels = [c.rel for c in p.clips.values() if c.kind == "video"]
+    n = proxies.enqueue(q, folder, rels, args.preset)
+    print(f"{n} proxies queued ({args.preset}) -> {folder / proxies.PROXY_DIR}")
+    if args.queue_only:
+        return 0
+    t0 = time.time()
+    done = [0]
+    total = q.counts("proxy").get("queued", 0)
+
+    def run_all():
+        while (job := q._next()) is not None:
+            q.run_one(job)
+            done[0] += 1
+            print(f"  {done[0]}/{total} {job.rel}  ({time.time() - t0:.0f} s)", flush=True)
+
+    run_all()
+    c = q.counts("proxy")
+    print(f"proxies: {c.get('done', 0)} done, {c.get('failed', 0)} failed")
+    return 0
+
+
+def cmd_drives(args) -> int:
+    from hypershutter.core import drives
+    for d in drives.drives():
+        flag = {"ok": "  ", "warn": "! ", "critical": "!!"}[d.status]
+        print(f"{flag}{d.name:16s} {d.total / 1e9:7.0f} GB  used {d.used / 1e9:7.0f}  free {d.free / 1e9:7.1f} GB"
+              + (f"  (after queued work {d.free_after / 1e9:.1f} GB)" if d.planned else "")
+              + ("  [card]" if d.is_card else "") + (f"  {d.message}" if d.message else ""))
+        for pu in d.projects:
+            print(f"      {pu.name}: footage {pu.footage_bytes / 1e9:.1f} GB, proxies {pu.proxies_bytes / 1e9:.1f} GB")
+    return 0
 
 
 def cmd_key(args) -> int:
@@ -500,7 +558,19 @@ def main(argv: list[str] | None = None) -> int:
     sp.add_argument("--proxy", default="prores_proxy", choices=["prores_proxy", "h264", "none"],
                     help="proxy preset, for the space check")
     sp.add_argument("--dry-run", action="store_true", help="only show the plan and the space check")
+    sp.add_argument("--no-proxies", action="store_true", help="do not make proxies after the copy")
     sp.set_defaults(func=cmd_ingest)
+
+    sp = sub.add_parser("proxies", help="make proxies for an event's clips in the background queue (ProRes Proxy)")
+    sp.add_argument("folder", nargs="?")
+    sp.add_argument("--preset", default="prores_proxy", choices=["prores_proxy", "h264"])
+    sp.add_argument("--workers", type=int, default=1)
+    sp.add_argument("--status", action="store_true", help="show the queue")
+    sp.add_argument("--queue-only", action="store_true", help="queue them for the app, do not run now")
+    sp.set_defaults(func=cmd_proxies)
+
+    sp = sub.add_parser("drives", help="connected drives: space, projects, proxies, warnings")
+    sp.set_defaults(func=cmd_drives)
 
     sp = sub.add_parser("key", help="store the Anthropic API key in the macOS Keychain")
     sp.add_argument("action", choices=["set", "status", "delete"], nargs="?", default="status")

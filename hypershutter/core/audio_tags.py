@@ -231,9 +231,13 @@ def locate(root: Path, clips: list[Clip], elsewhere: list[Path] = ()) -> dict[st
         for f in Path(d).iterdir():
             if not f.name.startswith("._") and f.is_file():
                 index.setdefault((f.name, f.stat().st_size), f)
+    from hypershutter.core import proxies
     for c in clips:
         here = Path(root) / c.rel
-        if here.exists():
+        px = proxies.proxy_for(root, c.rel)
+        if px:                                       # same sound, much less to read
+            found[c.id] = px
+        elif here.exists():
             found[c.id] = here
         elif (c.name, c.size) in index:
             found[c.id] = index[(c.name, c.size)]

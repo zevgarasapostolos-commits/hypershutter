@@ -20,6 +20,7 @@ from hypershutter.core.project import Project
 
 SKIP_DIR_PREFIXES = ("adobe premiere pro", "premiere composer files", "00 contact sheets", ".hypershutter")
 MUSIC_DIRS = {"music", "mousiki", "μουσικη", "μουσικες", "songs"}
+GENERATED_DIRS = {"proxies", "exports"}          # HyperShutter's own outputs, never footage to sort
 SONY_SIDECAR_RE = re.compile(r"^(.+?)M\d{2}$")      # C6501M01 -> C6501
 SERIES_RE = re.compile(r"^(.*?)(\d+)$")
 SERIES_GAP = 500           # numbering gap that separates two cameras sharing a prefix
@@ -33,7 +34,7 @@ def _norm(name: str) -> str:
 
 def _skip_dir(name: str) -> bool:
     n = _norm(name)
-    return name.startswith(".") or n.startswith(SKIP_DIR_PREFIXES) or n in MUSIC_DIRS
+    return name.startswith(".") or n.startswith(SKIP_DIR_PREFIXES) or n in MUSIC_DIRS or n in GENERATED_DIRS
 
 
 def discover(root: Path) -> tuple[list[Clip], list[str], list[str]]:
