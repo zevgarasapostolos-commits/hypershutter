@@ -47,7 +47,7 @@
     render() {
       const s = X.settings || {};
       const steps = [
-        `<h2 class="card-title">${esc(t("onb.welcome_title"))}</h2><p>${esc(t("onb.welcome"))}</p>
+        `<img class="hero-mark" src="/ui/img/mark.svg" alt=""><h2 class="card-title">${esc(t("onb.welcome_title"))}</h2><p>${esc(t("onb.welcome"))}</p>
          <div class="segs" id="onb-lang"><button class="seg ${HS.lang === "en" ? "on" : ""}" data-l="en">English</button><button class="seg ${HS.lang === "el" ? "on" : ""}" data-l="el">Ελληνικά</button></div>`,
         `<h2 class="card-title">${esc(t("onb.ffmpeg_title"))}</h2>${
           s.ffmpeg ? `<p class="ok">${esc(t("onb.ffmpeg_ok"))}</p>` : `<p class="warn">${esc(t("onb.ffmpeg_missing"))}</p><pre class="code">brew install ffmpeg</pre>`
@@ -489,7 +489,7 @@
     render() {
       const v = (U().S.info || {}).version || "";
       view().innerHTML = `${head(t("about.eyebrow"), "HyperShutter", t("about.version", { v }))}
-        <section class="card"><p>${esc(t("about.text"))}</p><p class="muted">${esc(t("about.credits"))}</p></section>
+        <section class="card"><img class="hero-mark" src="/ui/img/mark.svg" alt=""><p>${esc(t("about.text"))}</p><p class="muted">${esc(t("about.credits"))}</p></section>
         <section class="card"><h2 class="card-title">${esc(t("about.licenses"))}</h2><ul class="flag-list">${[
           "Anthropic Python SDK — MIT", "pywebview — BSD-3-Clause", "FFmpeg — LGPL/GPL (separate install)",
           "sherpa-onnx — Apache-2.0", "CED-mini audio tagger (k2-fsa) — Apache-2.0", "mlx-whisper / Whisper large-v3-turbo — MIT",

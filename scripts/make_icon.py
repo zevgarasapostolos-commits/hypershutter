@@ -1,5 +1,5 @@
-"""Placeholder app icon until the real logo arrives in assets/branding/: slate "HS" in a serif,
-a thin gold ring, on warm white. Writes assets/branding/placeholder-icon.png and build/HyperShutter.icns."""
+"""The app icon: build/HyperShutter.icns from assets/branding/AppIcon.iconset (the designed icon).
+Without it, a placeholder (slate "HS" in a gold ring) is drawn instead."""
 
 import subprocess
 import sys
@@ -34,9 +34,16 @@ def draw(size: int = 1024) -> Image.Image:
 
 
 def main() -> None:
+    given = ROOT / "assets" / "branding" / "AppIcon.iconset"            # the designed icon, all sizes
+    if given.is_dir():
+        out = ROOT / "build" / "HyperShutter.icns"
+        out.parent.mkdir(exist_ok=True)
+        subprocess.run(["iconutil", "-c", "icns", str(given), "-o", str(out)], check=True)
+        print(out)
+        return
     png = ROOT / "assets" / "branding" / "placeholder-icon.png"
     png.parent.mkdir(parents=True, exist_ok=True)
-    src = ROOT / "assets" / "branding" / "icon-1024.png"          # the real icon, when the user provides it
+    src = ROOT / "assets" / "branding" / "hypershutter-icon-1024.png"
     big = Image.open(src).convert("RGBA") if src.exists() else draw()
     if not src.exists():
         big.save(png)

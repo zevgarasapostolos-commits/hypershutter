@@ -21,12 +21,13 @@ button, input, select, textarea { font: inherit; color: inherit; }
   padding: var(--hs-space-4) var(--hs-space-3);
   height: 100vh; position: sticky; top: 0;
 }
-.brand { display: flex; align-items: center; gap: 10px; font: 21px/1.2 var(--hs-font-display); color: var(--hs-slate);
-  padding: 0 var(--hs-space-2) var(--hs-space-3); margin-bottom: var(--hs-space-3); letter-spacing: 0.01em;
+/* logo lockup: the bouquet mark over the wordmark (assets/branding/README.md) */
+.brand { display: flex; flex-direction: column; align-items: center; gap: 10px;
+  padding: 4px var(--hs-space-2) var(--hs-space-4); margin-bottom: var(--hs-space-3);
   border-bottom: 1px solid var(--hs-hairline); }
-.brand .mark { width: 30px; height: 30px; flex: none; }
-.brand .mark circle { fill: none; stroke: var(--hs-gold); stroke-width: 1; }
-.brand .mark text { font: 13px var(--hs-font-display); fill: var(--hs-slate); text-anchor: middle; letter-spacing: 0.02em; }
+.brand .mark { width: 66px; height: 66px; }
+.wordmark { font: 600 11px/1 var(--hs-font-text); letter-spacing: 0.34em; margin-right: -0.34em; color: var(--hs-slate); }
+.hero-mark { display: block; width: 96px; height: 96px; margin: 0 0 var(--hs-space-3); }
 .nav { display: flex; flex-direction: column; gap: 2px; }
 .nav-item {
   text-align: left; border: 0; background: none; cursor: pointer;

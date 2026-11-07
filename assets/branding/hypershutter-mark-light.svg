@@ -1,0 +1,23 @@
+<svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" viewBox="0 0 120 120" width="1024" height="1024">
+<defs><path id="leaf" d="M0 0C5 -4.5 13 -4.5 18 0C13 4.5 5 4.5 0 0Z" fill="#A59769"/><g id="rose"><path d="M0.00 -8.40Q6.82 -9.38 7.99 -2.60Q11.03 3.58 4.94 6.80Q0.00 11.60 -4.94 6.80Q-11.03 3.58 -7.99 -2.60Q-6.82 -9.38 0.00 -8.40Z" fill="#FFFFFF" stroke="#405366" stroke-width="1.7" stroke-linejoin="round"/><g fill="none" stroke="#405366" stroke-width="1.5" stroke-linecap="round"><path d="M-6.4 0.6C-5.4 6.4 5.4 6.4 6.4 0.6"/><path d="M-3.8 1.2C-4.6 -4.4 3.8 -5.2 3.6 -0.2C3.4 2.6 -0.6 2.8 -1 0.4C-1.2 -1.2 0.8 -1.6 1.2 -0.6"/></g></g></defs>
+<g fill="#FFFFFF"><rect x="14" y="101" width="30" height="7" rx="2"/><rect x="48" y="101" width="24" height="7" rx="2"/><rect x="76" y="101" width="30" height="7" rx="2"/></g>
+<g fill="#FFFFFF" fill-opacity="0.45"><rect x="14" y="111" width="44" height="7" rx="2"/><rect x="62" y="111" width="44" height="7" rx="2"/></g>
+<g stroke="#FFFFFF" stroke-width="1.8" stroke-linecap="round"><line x1="55" y1="82" x2="51" y2="97"/><line x1="58" y1="82" x2="56.5" y2="98"/><line x1="62" y1="82" x2="63.5" y2="98"/><line x1="65" y1="82" x2="69" y2="97"/></g>
+<use href="#leaf" xlink:href="#leaf" transform="translate(38 30) rotate(215)"/>
+<use href="#leaf" xlink:href="#leaf" transform="translate(50 20) rotate(245)"/>
+<use href="#leaf" xlink:href="#leaf" transform="translate(70 20) rotate(295)"/>
+<use href="#leaf" xlink:href="#leaf" transform="translate(82 30) rotate(325)"/>
+<use href="#leaf" xlink:href="#leaf" transform="translate(40 46) rotate(165)"/>
+<use href="#leaf" xlink:href="#leaf" transform="translate(80 46) rotate(15)"/>
+<use href="#leaf" xlink:href="#leaf" transform="translate(46 54) rotate(130)"/>
+<use href="#leaf" xlink:href="#leaf" transform="translate(74 54) rotate(50)"/>
+<path d="M50.5 57H69.5L66 83H54Z" fill="#FFFFFF"/>
+<use href="#rose" xlink:href="#rose" transform="translate(42 32) rotate(-14) scale(1.02)"/>
+<use href="#rose" xlink:href="#rose" transform="translate(78 32) rotate(12) scale(1.02)"/>
+<use href="#rose" xlink:href="#rose" transform="translate(60 22) rotate(4) scale(1.08)"/>
+<use href="#rose" xlink:href="#rose" transform="translate(60 37) rotate(-6) scale(0.92)"/>
+<use href="#rose" xlink:href="#rose" transform="translate(49.5 47) rotate(9) scale(1.1)"/>
+<use href="#rose" xlink:href="#rose" transform="translate(70.5 47) rotate(-11) scale(1.1)"/>
+<line x1="60" y1="66" x2="60" y2="119" stroke="#A59769" stroke-width="2.2" stroke-linecap="round"/>
+<g fill="#A59769"><path d="M60 64C54 58 47 59 48 64C49 68.5 55 67.5 60 64Z"/><path d="M60 64C66 58 73 59 72 64C71 68.5 65 67.5 60 64Z"/><path d="M56.5 60.5H63.5V64.5L60 68L56.5 64.5Z"/></g>
+</svg>
