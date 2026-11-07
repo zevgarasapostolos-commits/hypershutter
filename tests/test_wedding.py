@@ -70,4 +70,4 @@ def test_condense_keeps_key_moments_within_budget():
             S(60, 100, "μιλάμε για το τραπέζι μετά", [])]
     kept = transcribe.condense(segs, ratio=0.2, total=100)
     assert kept == [(20, 30), (40, 50)]                                  # the key phrases first, in time order
-    assert transcribe.condense(segs, ratio=0.2, total=100, boost=[52]) == [(20, 30), (40, 60)]
+    assert transcribe.condense(segs, ratio=0.2, total=100, boost=[52]) == [(40, 60)]          # the picture moment wins
