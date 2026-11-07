@@ -8,7 +8,7 @@ workflow export and the editing session's saved rules. No client names.
 | What | Where |
 |---|---|
 | Organizing (scan, clocks, frames, categories, ΡΟΗ/B-ROLL, move, verify, index) | [workflow-organizing.md](workflow-organizing.md) — the user's own export |
-| B-roll selection, highlights, ροή, Premiere XML, previews | [workflow-editing.md](workflow-editing.md) — synthesized from his corrections |
+| B-roll selection, highlights, ροή, Premiere XML, previews | out of the thesis scope; kept on the `edit-prep` branch |
 | Category hints per event type | `presets/*.yaml` |
 
 Earlier prototype scripts from those sessions (sync, motion, drone windows, XML writer, preview

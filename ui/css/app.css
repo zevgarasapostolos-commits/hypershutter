@@ -227,8 +227,3 @@ figcaption { display: flex; flex-direction: column; padding: 6px 2px 2px; }
 .progress-line { margin-top: var(--hs-space-3) !important; color: var(--hs-slate); }
 .last-run { align-self: center; font-size: 13px; }
 
-/* ---------- Edit prep ---------- */
-.wide-card { max-width: none; }
-.table.broll td { vertical-align: top; }
-.gold-star { color: var(--hs-gold); }
-.master-line { margin: 10px 0 2px; }

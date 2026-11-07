@@ -2,7 +2,7 @@
 
 Long work (scan, sync, frames, the AI passes) runs as one background job at a time; the UI
 polls `poll()` for progress events. Nothing here moves or writes footage: Review edits are
-saved to Application Support and Apply arrives in M5.
+saved to Application Support; files move only through Apply (with its journal and Undo).
 """
 
 from __future__ import annotations
@@ -16,8 +16,8 @@ from pathlib import Path
 from typing import Callable
 
 from hypershutter import __version__
-from hypershutter.core import (checks, config, cost, describe, edit, execute, frames, index, music, pipeline, premiere,
-                               review, scan, store, sync)
+from hypershutter.core import (checks, config, cost, describe, execute, frames, index, pipeline, review, scan,
+                               store, sync)
 from hypershutter.core.media import fmt_duration, fmt_offset
 from hypershutter.core.project import Project
 from hypershutter.core.structure import Structure
@@ -25,15 +25,13 @@ from hypershutter.core.structure import Structure
 EVENT_TYPES = ("baptism", "wedding", "event")
 SCRUB_FRAMES = 16                      # frames per clip sent to the Review grid for hover scrubbing
 STAGE = {"probe": "scan", "frames": "frames", "scene": "frames", "describe": "describe", "structure": "structure",
-         "backup": "backup", "move": "move", "undo": "undo", "highlights": "edit", "preview": "preview"}
+         "backup": "backup", "move": "move", "undo": "undo"}
 
 
 class Bridge:
-    def __init__(self, media_url: Callable[[str], str], pick_folder: Callable[[], str | None] | None = None,
-                 pick_file: Callable[[], str | None] | None = None):
+    def __init__(self, media_url: Callable[[str], str], pick_folder: Callable[[], str | None] | None = None):
         self._media_url = media_url
         self._pick = pick_folder or _osascript_folder
-        self._pick_file = pick_file or _osascript_song
         self._lock = threading.Lock()
         self._events: list[dict] = []
         self._job: dict | None = None
@@ -345,41 +343,6 @@ class Bridge:
 
         return self._start("undo", work)
 
-
-    # ---------- Edit prep ----------
-
-    def edit_info(self) -> dict:
-        p = self._require()
-        st = self._structure()
-        song = music.find_song(Path(p.root))
-        cer = [{"name": name, "keys": [c.key for c in cats], "folders": [c.folder for c in cats]}
-               for name, cats in edit.ceremony_groups(st)]
-        return {"song": str(song) if song else None, "ceremonies": cer, "read_only": premiere.read_only(p),
-                "out_dir": str(premiere.output_dir(p)),
-                "folders": [{"key": c.key, "folder": c.folder} for c in st.categories]}
-
-    def broll(self, keys: list[str]) -> dict:
-        p = self._require()
-        st = self._structure()
-        return edit.broll_list(p, st, premiere.descriptions(p, st), keys)
-
-    def pick_song(self) -> str | None:
-        return self._pick_file()
-
-    def start_premiere(self, song: str | None = None, preview: bool = True) -> dict:
-        p = self._require()
-        st = self._structure()
-
-        def work() -> dict:
-            return premiere.export(p, st, Path(song) if song else None, preview, progress=self._progress)
-
-        return self._start("premiere", work)
-
-
-def _osascript_song() -> str | None:
-    r = subprocess.run(["osascript", "-e", 'POSIX path of (choose file with prompt "Song for the highlights" '
-                        'of type {"public.audio"})'], capture_output=True, text=True)
-    return r.stdout.strip() or None if r.returncode == 0 else None
 
 
 def _osascript_folder() -> str | None:

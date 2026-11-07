@@ -1,17 +1,23 @@
 # HyperShutter
 
-A macOS app for wedding, baptism and event videographers. Drop in the raw footage folder of an
-event and HyperShutter reproduces the videographer's own organizing workflow: it syncs the camera
-clocks, builds contact sheets, uses Claude vision to understand every clip, proposes an
-event-specific category structure (numbered, Greeklish folder names, ΡΟΗ / B-ROLL splits), and
-after review moves everything into place with a full undo journal, a shot index and per-category
-contact sheets. It then prepares B-roll selections and Premiere sequences.
+**Ingest, archiving and automatic sorting of wedding videography footage** (undergraduate thesis,
+Digital Systems, University of Thessaly).
 
-> Status: **M6 — edit prep** (baptism). The window (`hypershutter app`) has Projects, Scan & Analyze,
-> Review with Apply / Undo, and Edit prep (B-roll lists, highlights + ροή as Premiere XML with previews).
-> Wedding-specific rules are pending the user's instructions.
+HyperShutter copies memory cards to several drives at once with checksum verification and creates
+proxies in the background. It sorts the footage automatically by moment of the wedding (groom and
+bride getting ready, ceremony, reception …) using capture time, image and audio analysis and the
+camera. The videographer reviews and corrects the sorting before the files are organized into
+numbered Greeklish folders, with an undo journal, a shot index and per-folder contact sheets. It
+also monitors drive space and does batch exports with presets. Weddings are the main target;
+baptisms and other events work through presets.
 
-## Usage (so far)
+> Status: sorting, review, apply / undo and evaluation work (CLI and window). Remaining: audio
+> analysis in the sorting and the ablation study (T2), ingest (T3), proxies and drive monitoring
+> (T4), multi-drive organize (T5), batch export (T6), the remaining screens (T7), design (T8) and
+> packaging (T9). The earlier editing prototype (B-roll, Premiere XML) lives on the `edit-prep`
+> branch and is out of the thesis scope.
+
+## Usage
 
 ```bash
 hypershutter app                                # the window: Projects → Scan & Analyze → Review
@@ -27,8 +33,6 @@ hypershutter eval "/Volumes/T7/<organized event>/"   # accuracy against the user
 hypershutter apply "/Volumes/T7/<event>/"       # dry run: what would move where
 hypershutter apply "/Volumes/T7/<event>/" --apply [--backup /Volumes/Backup]   # move (journaled)
 hypershutter undo "/Volumes/T7/<event>/"        # every file back to its exact original path
-hypershutter broll "/Volumes/T7/<event>/"       # B-roll lists per ceremony, strongest first
-hypershutter premiere "/Volumes/T7/<event>/"    # highlights + ροή Premiere XML and previews
 ```
 
 The AI model defaults to Claude Opus 5.5 (`--model claude-sonnet-5-5` or `claude-haiku-5-5` are
@@ -39,6 +43,7 @@ wrote (e.g. "camera A is +14:00"). Each device gets an anchor/auto/manual/unreso
 
 ## Safety rules
 
+- Memory cards are read-only: ingest copies and verifies, it never moves, renames or formats.
 - Source files are never modified, re-encoded or deleted. Duplicates and corrupt files are only flagged.
 - Dry run first: nothing moves until the user approves in Review (or passes `--apply` in the CLI).
 - Every move is journaled before it happens; undo restores exact original paths.
@@ -62,22 +67,25 @@ python3.13 -m venv .venv
 
 ```
           ┌──────────── GUI (pywebview + HTML/CSS/JS) ────────────┐
-          │  Home · Scan & Analyze · Review · Edit prep · Lab …   │
+          │  Home · Ingest · Analyze · Review · Export · Drives … │
           └───────────────────────────┬───────────────────────────┘
                                       │ same calls
-                     CLI  hypershutter scan|sync|frames|describe|structure|eval|apply|undo|premiere
+                     CLI  hypershutter ingest|scan|sync|frames|structure|eval|apply|undo|export
                                       │
- core/  scan → checks → sync → frames → describe (Claude, per clip) → structure (Claude, whole event)
+ core/  ingest (cards → N drives, verified) ─► proxies (background)
+          │
+        scan → checks → sync → frames + audio features → describe (Claude, per clip)
+                                                        → structure (Claude, whole event)
                                                                          │
                          Review / approve ──► execute (journal, move, undo) → index + contact sheets
                                                                          │
-                                                       broll → premiere (XML + previews)
+                                                        batch export (presets) · drive monitoring
  state: SQLite + frame cache in ~/Library/Application Support/HyperShutter/
 ```
 
 | Path | Contents |
 |---|---|
-| `hypershutter/core/` | pipeline: scan, checks, sync, frames, sheets, describe, structure, review, execute (apply/undo/backup), index, edit (B-roll, highlights, ροή), music, xmeml, preview, premiere, evaluate, pipeline |
+| `hypershutter/core/` | pipeline: scan, checks, sync, frames, sheets, describe, structure, review, execute (apply/undo/backup), index, audio, transcribe, evaluate, pipeline |
 | `hypershutter/app/` | `main.py` (pywebview window), `server.py` (local server on 127.0.0.1 with a per-run token), `bridge.py` (the API every screen calls) |
 | `ui/` | plain HTML/CSS/JS: `css/tokens.css`, `css/app.css`, `js/`, `locales/en.json`, `locales/el.json` |
 | `presets/` | category **hints** per event type (never fixed lists) |
@@ -87,13 +95,12 @@ python3.13 -m venv .venv
 ## Docs
 
 - [docs/workflow-organizing.md](docs/workflow-organizing.md): how footage is organized (user's export, Greek)
-- [docs/workflow-editing.md](docs/workflow-editing.md): B-roll, highlights, ροή, Premiere XML rules
+- [docs/workflow-baptism.md](docs/workflow-baptism.md): the user's full baptism guide (only its organizing part is in scope)
 - [docs/m0-findings.md](docs/m0-findings.md): cameras, clocks, formats, evaluation targets
 - [docs/m1-clock-sync.md](docs/m1-clock-sync.md): scan, devices, clock sync (NCC vs GCC-PHAT), results
 - [docs/m2-frames.md](docs/m2-frames.md): frame extraction benchmark, contact sheet sizing, cost estimate
 - [docs/m3-describe-structure.md](docs/m3-describe-structure.md): the two AI passes, validation rules, evaluation
 - [docs/m5-apply.md](docs/m5-apply.md): plan, write-ahead journal, move, undo, backup, index, contact sheets
-- [docs/m6-edit.md](docs/m6-edit.md): B-roll lists, highlights and ροή rules, Premiere XML, previews
 
 ## Accuracy
 

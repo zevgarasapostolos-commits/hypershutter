@@ -2,236 +2,242 @@
 
 This file is the single source of truth for the project. Read it fully at the start of every session.
 
-## 1. What we are building
+## 0. Thesis — this defines the scope
 
-**HyperShutter** is a macOS app for wedding / baptism / event videographers. You drop in the raw footage folder of an event and it reproduces the user's own organizing workflow automatically:
+HyperShutter is the user's **undergraduate thesis**. Official title and description (the scope contract — build exactly this, nothing more):
 
-1. scans every clip from every camera and syncs the camera clocks,
-2. extracts many frames from each clip and builds contact sheets,
-3. uses AI vision (Claude API) plus capture time, duration and camera to understand what happens in every clip,
-4. **builds the category structure for that specific event** (every event is different — there is no fixed list), assigns every clip, and shows a review screen where the user can correct anything,
-5. after approval, moves the files into numbered Greeklish category folders, writes the shot index and per-category contact sheets, keeps an undo journal,
-6. continues with the rest of the user's workflow (B-roll selection, Premiere sequences) as documented in the workflow docs (section 4).
+> **Σύστημα εισαγωγής, αρχειοθέτησης και αυτόματης ταξινόμησης υλικού βιντεοσκόπησης γάμων**
+>
+> Αντιγράφει κάρτες μνήμης με επαλήθευση checksum σε πολλούς δίσκους ταυτόχρονα και δημιουργεί proxies στο παρασκήνιο. Ταξινομεί αυτόματα το υλικό ανά στιγμή του γάμου (ετοιμασία γαμπρού και νύφης, μυστήριο, δεξίωση κ.ά.), με βάση την ώρα λήψης, την ανάλυση εικόνας και ήχου και την κάμερα. Ο χρήστης ελέγχει και διορθώνει την ταξινόμηση πριν την τελική οργάνωση των αρχείων. Παρακολουθεί τον χώρο στους δίσκους και κάνει μαζική εξαγωγή με presets.
 
-Owner and only user right now: **Apostolos**, professional wedding/event videographer and Digital Systems student (University of Thessaly). This is also his university project, so measured accuracy and clean architecture matter.
+English: *An ingest, archiving and automatic sorting system for wedding videography footage. It copies memory cards to several drives at once with checksum verification and creates proxies in the background. It automatically sorts the footage by moment of the wedding (groom and bride getting ready, ceremony, reception, etc.) using capture time, image and audio analysis, and the camera. The user reviews and corrects the sorting before the final organization of the files. It monitors drive space and does batch export with presets.*
 
-**Deadline: the whole project must be done within one month — build as fast as possible.**
-**Priority order: 1) it works and the result is correct, 2) then the design.**
+**Out of scope — do not build:** B-roll selection for the edit, Premiere XML / sequences, preview edits, music, any automatic editing or cutting.
+
+Weddings are the primary target (thesis). The same engine also works for baptisms and other events through presets (secondary).
+
+Owner and only user: **Apostolos**, professional wedding/event videographer and Digital Systems student (University of Thessaly). Measured results and clean architecture matter — they go into the thesis.
+
+**Deadline: within one month — build as fast as possible. Priority: 1) it works and the results are correct, 2) then the design.**
+
+## 1. Features (the five parts of the thesis)
+
+1. **Ingest** — copy memory cards to several destination drives at the same time, with checksum verification.
+2. **Background proxies** — generate proxies while the user keeps working.
+3. **Automatic sorting** — group clips by moment of the wedding using capture time, image analysis, audio analysis and camera.
+4. **Review & correct → organize** — the user checks and fixes the sorting; only then are the files organized into folders.
+5. **Drive space monitoring + batch export with presets** — live free-space view and warnings; batch transcode/export of clips or whole categories using editable presets (per-clip transcodes only — no editing).
 
 ## 2. Talking to the user
 
 - Talk to Apostolos **in Greek**. Code, commits, comments and docs in English.
 - Work autonomously and fast. Do not ask for approval of every step.
-- Stop and ask only for: (a) any operation that moves/renames files in a real event folder, (b) showing the first contact sheets and the first accuracy report, (c) decisions that change scope or add a big dependency, (d) missing workflow docs (section 4).
+- Stop and ask only for: (a) any operation that moves/renames files in a real event folder or touches a real memory card, (b) showing the first contact sheets and the first accuracy report, (c) decisions that change scope or add a big dependency, (d) missing workflow docs (section 4).
+- **Never stop to ask about API cost** during development, evaluation or the ablation study — just run (the cost estimate and confirmation are a feature of the app's UI for end users, not a stop for you). Report the total cost in the milestone summary.
 - At the end of each milestone: a short Greek summary (what works, what to test, any open issue), then commit + push and continue.
 
 ## 3. Golden rules (never break these)
 
+- **Memory cards are read-only.** Never write to, rename on, format or erase a card. Ingest is copy + verify, never move.
+- A card counts as safely offloaded only when **every** destination copy is verified by checksum.
 - **Do not open, list, read or analyze the project `059 baftisi alexia` in any way**, and do not reuse anything about it from old sessions.
 - **Reference projects are strictly read-only**: no moves, renames, new files, caches or metadata writes inside them. Caches go to Application Support, reports to the repo.
 - **Never delete footage.** Duplicates and corrupt files are flagged, never deleted.
-- **Never modify source files** (no re-encode, no metadata writes).
-- **Dry run first.** Nothing moves until the user approves in the Review screen (or with an explicit `--apply` in the CLI).
+- **Never modify source files** (no re-encode in place, no metadata writes).
+- **Dry run first.** Nothing is organized until the user approves in the Review screen (or with an explicit `--apply` in the CLI).
 - **Undo must always work.** Every move/rename is written to a journal *before* it happens; undo restores exact original paths and names.
-- **Sidecars travel with their clip** (Sony `.XML`, DJI `.SRT` / `.LRF`, `.THM`, etc.).
-- During development, test move/rename/undo **only on a small test copy** (20–40 clips copied to a separate folder outside any real project, e.g. `~/HyperShutter-test/`), never on a real project.
-- Never send file names or folder paths to the AI model (in already-sorted projects folder names reveal the answer).
+- **Sidecars travel with their clip** (Sony `.XML`, DJI `.SRT` / `.LRF`, `.THM`, etc.); proxies follow their clip.
+- During development, test ingest with a **fake card** (a folder copied from a real card) and test move/undo on a **small test copy** (20–40 clips in a separate folder such as `~/HyperShutter-test/`), never on a real card or project.
+- Never send file names or folder paths to the AI model (in sorted projects folder names reveal the answer).
 - Never commit footage, frames, caches, client names, logs with personal data, `.env`, or API keys.
 
-## 4. The workflow to reproduce
+## 4. The organizing workflow to reproduce
 
-### 4.1 Source of truth: the user's two existing workflows
+### 4.1 Source of truth: the user's existing workflows
 
-The app must do what the user already does with Claude in two places:
-1. a chat called **"βαφτιση b roll επιλογη"** (baptism: organizing footage and selecting B-roll from frames), and
-2. a **Claude Code session where he organizes baptisms**, which also has a thread for **weddings**.
+The sorting must follow how the user already organizes events with Claude:
+1. the chat **"βαφτιση b roll επιλογη"**, and
+2. a **Claude Code session where he organizes baptisms**, with a thread for **weddings**.
 
-How to get them:
-- The user will export each workflow as a Markdown file: `docs/workflow-baptism.md` and `docs/workflow-wedding.md`. Read them first; they override any default in this file.
-- Also search previous local Claude Code sessions (`.jsonl` files under `~/.claude/projects/`) read-only for the baptism/wedding organizing sessions and extract the method. **Skip anything about `059 baftisi alexia`.**
-- If neither the docs nor the sessions are available, ask the user for the docs before building the categorization (M3). Summarize what you learned to the user in Greek before building on it.
-
-Extract from them: how capture times and camera clocks were handled, how frames and contact sheets were made (density, grid, size), how the event's parts were decided and named, how ΡΟΗ vs B-ROLL was split, how B-roll was selected, how the index and contact sheets were written, how the Premiere sequences (ροή / highlights) and previews were built, and every rule or correction the user gave.
+- They are already captured in the repo: `docs/workflow-organizing.md`, `docs/workflow-baptism.md` and the milestone docs `docs/m0-findings.md` … `docs/m5-apply.md`. They override defaults in this file. **Skip anything about `059 baftisi alexia`.**
+- Use **only the organizing part**: capture times and clock correction, frames and contact sheets, how the event's parts are decided and named, ΡΟΗ vs B-ROLL folders, the index and contact sheets, and every organizing rule or correction the user gave. `docs/workflow-editing.md`, `docs/wedding-reference-edit.md` and `docs/m6-edit.md` describe editing — out of scope on `main`.
 
 ### 4.2 Categories are dynamic — every event is different
 
-There is **no fixed category list** for a baptism or a wedding. Each event gets its own structure, built from what is actually in the footage, following the user's workflow:
-- numbered in chronological order of the day (`01`, `02` …), with sub-letters when a part is split (e.g. `08` / `08a`),
-- names describe what is in that part of this specific event,
-- a ceremony part can be split into **ΡΟΗ** (the few long continuous takes that cover it start to end) and **B-ROLL** (short cutaways — faces, details, close-ups, often from the second camera),
+There is **no fixed category list**. Each event gets its own structure, built from what is in the footage:
+- numbered in chronological order of the day (`01`, `02` …), with sub-letters when a part is split (`08` / `08a`),
+- names describe that part of this specific event,
+- a ceremony can be split into **ΡΟΗ** (the few long continuous takes that cover it) and **B-ROLL** (short cutaways — faces, details, close-ups, often from the second camera),
 - drone clips usually get their own category,
 - unusable/unknown clips go to `99 AXRISTA` (only if there are any).
 
-`presets/*.yaml` are **hints only**: typical parts of a baptism / wedding / event, the naming style, and the rules above — never a fixed list. In Review the user can rename, merge, split and reorder categories.
+`presets/wedding.yaml` (primary), `baptism.yaml`, `event.yaml` are **hints only** — typical moments, naming style, rules. Typical wedding moments as hints: groom getting ready, bride getting ready, details (rings, dress, shoes), church exterior/interior, arrivals, bride's arrival/entrance, ceremony (ΡΟΗ / B-ROLL), exit & wishes, couple shoot, reception venue, couple's entrance, first dance, dancing, cake, drone. In Review the user can rename, merge, split and reorder categories.
 
 ### 4.3 Naming: Greeklish
 
-All folder names and the index file name are **Greeklish** (Latin characters), regardless of the UI language — e.g. `01 STOLISMOS & CANDY BAR`, `08 KATIXISI - ROI`, `08a KATIXISI - B-ROLL`, `99 AXRISTA`. Take the exact transliteration style and the index/contact-sheet file names from the workflow docs; if they don't specify, ask the user once and store the answer in the preset.
+Folder names and the index file name are **Greeklish** (Latin characters), regardless of UI language — e.g. `01 ETOIMASIA GAMPROU`, `05 MYSTIRIO - ROI`, `05a MYSTIRIO - B-ROLL`, `99 AXRISTA`. Take the exact style from the workflow docs; if they don't specify, ask the user once and store it in the preset.
 
 ### 4.4 Example of a finished project (example only — not a template)
 
-`/Volumes/T7/073 Β11-10-2026 Γ ` (note: the folder name **ends with a space**; always quote paths). It shows the kind of output the workflow produces — its exact categories are specific to that baptism and must not be hard-coded:
+`/Volumes/T7/073 Β11-10-2026 Γ ` — a baptism; the folder name **ends with a space** (always quote paths):
 
 ```
 00 CONTACT SHEETS/          one contact sheet per category (01.jpg … 15.jpg, 08a.jpg, 09a.jpg)
 00 ΕΥΡΕΤΗΡΙΟ ΠΛΑΝΩΝ.md      shot index
-01 … 15                     17 category folders, incl. 08/08a (catechism ΡΟΗ / B-ROLL),
-                            09/09a (ceremony ΡΟΗ / B-ROLL), a DRONE folder, …
+01 … 15                     17 category folders, incl. 08/08a and 09/09a (ΡΟΗ / B-ROLL), a DRONE folder, …
 cam apos/ cam dim/ drone/   original source folders, empty after the move
-music/                      music track for the edit
-073 B11-10-2026 ροή.xml, 073 B11-10-2026 highlights.xml     Premiere sequences
-073 ροή - preview (για έλεγχο).mp4, 073 highlights - preview (για έλεγχο).mp4
 ```
 
-(This example still has Greek folder names; new output uses Greeklish per 4.3.) 267 clips: camera A `C41xx–C43xx` (main, from `cam apos`), camera B `C65xx` (from `cam dim`), drone `DJI_YYYYMMDDhhmmss_NNNN_D.MP4`. Original camera file names are kept. The index notes that camera A's clock was wrong (by +14:00) and that this was confirmed by finding camera-B clips showing the same moment inside camera-A clips.
+The root also contains `music/`, Premiere XMLs and preview MP4s from editing — out of scope, ignore them (also in evaluation). Folder names here are still Greek; new output uses Greeklish (4.3). 267 clips: camera A `C41xx–C43xx` (main, `cam apos`), camera B `C65xx` (`cam dim`), drone `DJI_YYYYMMDDhhmmss_NNNN_D.MP4`. Camera file names are kept. The index notes camera A's clock was wrong (+14:00), confirmed by camera-B clips showing the same moment inside camera-A clips.
 
-Source folder names vary between projects (`cam apos`, `apos`, `dim`, `drone`, `sound`, `music` …): detect cameras by file pattern and metadata, not only folder name. Sidecars may be missing.
+Source folder names vary (`cam apos`, `apos`, `dim`, `drone`, `sound` …): detect cameras by file pattern and metadata, not only folder name. Sidecars may be missing.
 
-### 4.5 Shot index format (as in the example; file name in Greeklish)
+### 4.5 Shot index format (file name in Greeklish)
 
 - Title `# <project folder name> — ευρετήριο πλάνων` (or as the workflow docs say).
-- Bold one-line summary (event type, name if the user entered one, date, time of day) + total clips and folders.
+- Bold one-line summary (event type, names if the user entered them, date, time of day) + total clips and folders.
 - Camera legend with file patterns and clip counts; clock-correction note when an offset was applied.
 - **Χρονολόγιο**: one line with the time range of each part of the day.
 - Pointer to the contact sheets folder.
-- Per category: `## <folder name>`, one Greek sentence describing what is in it, `**N πλάνα · X λεπτά**`, then the table `| clip | κάμ. | ώρα | διάρκεια |` sorted by corrected time.
+- Per category: `## <folder name>`, one Greek sentence describing it, `**N πλάνα · X λεπτά**`, then `| clip | κάμ. | ώρα | διάρκεια |` sorted by corrected time.
 - ⭐ optional.
 
 ### 4.6 Reference projects for testing
 
-- **Baptism:** `073 Β11-10-2026 Γ` (above).
-- **Wedding:** the wedding of **25 July** — find its folder on the T7 and confirm the exact name with the user. The user will give detailed wedding instructions when we reach it.
+- **Wedding (primary — the thesis is about weddings):** `gamos 25-07` (507 clips, 18 folders; wedding and baptism on the same day).
+- **Baptisms:** `073 Β11-10-2026 Γ` (used for tuning) and `071` (held-out — never tune on it).
+- Current results (pass-2 rules s4, Claude Opus 5.5): wedding 96.5 % matched accuracy, 073 97.8 %, 071 96.0 % — see `docs/m3-describe-structure.md`.
 
 ## 5. Tech stack
 
 - **Python 3.12+**, virtualenv, dependencies pinned in `requirements.txt`.
-- **pywebview** for a native macOS window (WKWebView) with an HTML/CSS/JS interface. Plain JS or a very light library — no heavy frontend framework unless clearly needed.
-- **ffmpeg / ffprobe** from Homebrew (check on startup; guide installation if missing). Use `-hwaccel videotoolbox` where it helps.
-- **Anthropic Python SDK** for vision. Model configurable in Settings (default a Sonnet-class model, cheaper Haiku-class option). Check the current model names and image limits in the official docs before coding.
-- **SQLite** for project state and frame cache index, stored in `~/Library/Application Support/HyperShutter/`.
-- API key stored in the **macOS Keychain** (`keyring`), never in files or the repo.
-- Packaging into **HyperShutter.app** with py2app or PyInstaller; `.icns` icon built with `iconutil`.
-- The core must also run as a **CLI** (`hypershutter scan | sync | frames | describe | structure | eval | apply | undo | premiere`) — the GUI calls the same core. This makes testing and the university report easy.
+- **pywebview** for a native macOS window (WKWebView) with an HTML/CSS/JS interface. Plain JS or a very light library.
+- **ffmpeg / ffprobe** from Homebrew (check on startup; guide installation if missing). Use VideoToolbox hardware encode/decode where it helps.
+- **Ingest**: `xxhash` (xxh3-64 or xxh64; MD5 optional for compatibility), threads for parallel destination writes, per-destination checksum manifest (ASC MHL if practical, otherwise a simple hash list + JSON report).
+- **Audio analysis**: ffmpeg for loudness/silence (`ebur128`, `silencedetect`); a small pretrained **local** audio-event classifier (e.g. PANNs / YAMNet / CLAP via onnxruntime — pick what runs well on Apple Silicon) for tags like speech, singing/chanting, music, applause, crowd, bells; and the existing local Whisper (`core/transcribe.py`, large-v3-turbo on mlx) for ritual phrases and speech.
+- **Anthropic Python SDK** for vision. Default model **Claude Opus 5.5** (the user's choice); Sonnet / Haiku as cheaper options.
+- **SQLite** for state and caches in `~/Library/Application Support/HyperShutter/`.
+- API key in the **macOS Keychain** (`keyring`), never in files or the repo.
+- Packaging into **HyperShutter.app** with py2app or PyInstaller; `.icns` icon via `iconutil`.
+- Everything also runs as a **CLI** (the existing commands plus `ingest`, `proxies`, `drives`, `export`) — the GUI calls the same core.
 
-Suggested layout:
+Keep the existing repo layout. New modules for the missing thesis parts: `core/ingest.py`, `cards.py`, `manifest.py`, `proxies.py`, `drives.py`, `audio_tags.py`, `export.py`, `jobs.py`; presets in `presets/export/*.yaml` and `presets/proxy/*.yaml`; tests for hashing/verify (incl. simulated corruption), resume, multi-drive apply and export.
 
-```
-hypershutter/
-  core/      scan.py checks.py timecode.py sync.py frames.py describe.py structure.py
-             execute.py (backup / move / rename / undo) index.py broll.py premiere.py
-             evaluate.py config.py
-  app/       main.py (pywebview bootstrap, JS bridge, menus)
-  ui/        index.html  css/tokens.css  css/app.css  js/  locales/en.json  locales/el.json
-  presets/   baptism.yaml wedding.yaml event.yaml   (hints, not fixed lists)
-  docs/      workflow-baptism.md workflow-wedding.md (from the user)
-  assets/    branding/ (logo + icon — placeholders until provided)
-  tests/     pytest: journal/undo, move, time parsing, sidecar grouping, clock sync, metrics
-  scripts/   build_app.sh
-```
+## 6. Pipeline
 
-## 6. Processing pipeline
+### 6.1 Ingest (cards → several drives at once)
+- Detect inserted cards by watching `/Volumes`; recognize the card type by structure (Sony `PRIVATE/M4ROOT/CLIP`, generic `DCIM`, DJI `DCIM/DJI_*` / `DCIM/100MEDIA`, audio recorders). The user labels the source once (e.g. `cam apos`, `cam dim`, `drone`, `sound`); remember the label by camera/card identity.
+- The user picks a project (new or existing) and 1–N destination drives. Each destination gets the same structure: `<project>/<source label>/…`.
+- **Pre-flight**: check free space on every destination ≥ card data + proxy estimate + margin; block with a clear message if not.
+- **Read once, write many**: read each file from the card once, hash while reading, write to all destinations in parallel. Then **verify** every destination copy by re-reading and hashing. Mismatch → retry that file on that destination, then flag clearly.
+- **Resumable**: skip files already ingested and verified (same relative path, size and hash); safe to re-insert a card or resume after a crash.
+- Write a checksum manifest + ingest report per destination (files, sizes, hashes, verify status, time, throughput).
+- Live progress per destination (MB/s, ETA), and a final "safe to format" status only when everything verified (the app never formats the card itself).
+- Prove it in tests: a fake card, two destination folders, and a deliberately corrupted copy that verification must catch.
 
-### 6.1 Scan and clock sync
-- Walk the source folders; detect video, audio and sidecar files; group sidecars with their clip.
-- ffprobe: duration, resolution, fps, codec, `creation_time`.
-- Capture time, best source first: Sony XML sidecar, DJI file-name timestamp and `.SRT`, container `creation_time`, file mtime as last resort. Handle time zones correctly (Greece).
-- **Per-camera clock offset**: detect automatically by finding the same moment on two cameras (frame similarity and/or audio cross-correlation of overlapping clips), propose the offset, let the user confirm or edit it. Test case: camera A in the example (+14:00).
-- Audio-only files are assigned by time overlap with video clips.
+### 6.2 Proxies (background)
+- Start a proxy job as soon as a file is verified; low priority; never slows ingest noticeably (limit concurrency).
+- Presets: ProRes Proxy (default) or H.264, with resolution presets; hardware encoding where possible.
+- Stored as `<project>/Proxies/<same relative path>/<same base name>.mov` so Premiere's "Attach Proxies" works; proxies follow their clip when files are organized.
+- Resumable queue with status in the UI. Frame extraction and audio analysis use proxies when available (much faster).
 
-### 6.2 Checks
-- Duplicates: size → partial hash → full hash. Flag only.
-- Corrupt / unreadable / zero-length files: flag only.
+### 6.3 Scan, clock sync, checks
+- Walk the source folders; group sidecars with their clip; ffprobe duration, resolution, fps, codec, `creation_time`.
+- Capture time, best source first: Sony XML sidecar, DJI file-name timestamp / `.SRT`, container `creation_time`, file mtime last. Handle time zones (Greece).
+- **Per-camera clock offset**: detect automatically by finding the same moment on two cameras (**audio cross-correlation** first, frame similarity as backup), propose the offset, the user confirms or edits. Test case: camera A in the baptism example (+14:00).
+- Duplicates (size → partial hash → full hash) and corrupt / zero-length files: flag only.
 
-### 6.3 Frames — dense by design
-The user wants **as many frames as possible** for accuracy.
-- Default density: **1 frame every 2 seconds** plus extra frames at scene changes (ffmpeg scene detection). No artificial per-clip cap. Density is a setting (e.g. 1/4 s, 1/2 s, 1/1 s). Follow the workflow docs if they used a different method.
-- One ffmpeg decode pass per clip (fps filter + scene select + downscale), clips processed in parallel. Use DJI `.LRF` low-res files when present (much faster).
-- Tile frames into **contact sheets** (e.g. 6×4 = 24 frames per sheet, each labeled with its timestamp), sized around the API's optimal image size. Long clips (e.g. 90+ minutes of dancing) produce several sheets.
-- Cache frames and sheets in Application Support; never re-extract unless settings change.
-- Before calling the API, show an **estimate of cost and time**; the user confirms.
+### 6.4 Frames — dense by design
+- Default **1 frame every 2 s** plus extra frames at scene changes; no per-clip cap; density is a setting. Follow the workflow docs if they used a different method.
+- One decode pass per clip, parallel, from proxies / DJI `.LRF` when present.
+- Tile into **contact sheets** (e.g. 6×4, timestamp labels) sized for the API; long clips get several sheets.
+- Cache everything; show an **estimate of API cost and time** before calling the API; the user confirms.
 
-### 6.4 Understanding and structuring (two passes)
-- **Pass 1 — describe every clip** (per clip, in parallel): send its contact sheets, corrected time, duration and camera. Get structured JSON: what/who/where, shot type (wide / close-up / detail / portrait / aerial), continuous take vs cutaway, notable moments, quality issues (blur, black, accidental), optional star suggestion.
-- **Pass 2 — build the event structure** (one call over the whole event): send all clip descriptions on the corrected timeline (text only, plus a few representative sheets if useful), the preset hints and the workflow rules. Get back: the event's parts in chronological order with Greeklish folder names and numbers, ΡΟΗ / B-ROLL splits where they apply, the drone folder, `99 AXRISTA` if needed, a Greek one-line description per part, and the assignment of every clip with a confidence.
-- **Smoothing / validation**: fix isolated outliers that contradict their neighbors in time; every clip assigned exactly once; numbering follows the timeline.
-- Low confidence → "Needs review".
-- **Offline fallback**: time-gap segmentation of the timeline (big gaps = new part) with generic names, when there is no internet or API key.
+### 6.5 Audio analysis
+- Per clip, over time: loudness and silence profile, audio-event tags (speech, singing/chanting, music, applause, cheering, crowd, bells, …) with timestamps.
+- Summarize as compact text features for the model (e.g. "0–40 s chanting, organ; 40–55 s applause") — no raw audio to the API.
+- Also used for clock sync (6.3). Reuse `core/audio.py` (cached mono audio) and `core/transcribe.py` (local Whisper).
 
-### 6.5 Evaluation mode (correctness proof — do this early)
-- Input: an already-organized project (baptism `073`, later the 25 July wedding). Ground truth = the folder each clip is in.
-- Run the full pipeline **read-only** (no moves), hiding names/paths from the model.
-- Because category names differ between runs, use **grouping metrics**, not name matching:
-  - match predicted folders to ground-truth folders by overlap (Hungarian matching) → matched accuracy and per-folder precision/recall,
-  - pairwise precision / recall / F1 (do clips the user put together end up together?),
-  - Adjusted Rand Index,
-  - number of folders predicted vs ground truth, and how well part boundaries line up on the timeline,
-  - whether the clock offset was detected correctly,
-  - cost and runtime.
-- Save as Markdown + JSON in `reports/` (git-ignored if it contains client names). Compare frame densities (1/4 s vs 1/2 s vs 1/1 s) on a subset — this goes into the university report.
-- Iterate on prompts and rules until the numbers are clearly good, and report them to the user.
+### 6.6 Automatic sorting (two passes)
+- **Pass 1 — describe every clip** (parallel): contact sheets + corrected time + duration + camera + audio features → JSON: what/who/where, shot type (wide / close-up / detail / portrait / aerial), continuous take vs cutaway, notable moments, audio context, quality issues, optional star suggestion.
+- **Pass 2 — build the event structure** (one call over the whole event): all clip descriptions on the corrected timeline, the preset hints and the workflow rules → the event's moments in chronological order with Greeklish folder names and numbers, ΡΟΗ / B-ROLL splits where they apply, drone folder, `99 AXRISTA` if needed, a Greek one-line description per moment, and the assignment of every clip with a confidence.
+- **Smoothing / validation**: fix isolated outliers that contradict their time neighbors; every clip assigned once; numbering follows the timeline. Low confidence → "Needs review".
+- **Offline fallback**: time-gap + audio segmentation with generic names when there is no internet or API key.
 
-### 6.6 Review → Apply
-- Review screen: categories with thumbnails; hover to scrub through frames; drag a clip to another category; rename / merge / split / reorder categories; filter "Needs review"; toggle ⭐.
-- Optional **backup** to a second drive with checksum verification (xxhash) before any move.
-- **Move** into the numbered folders, sidecars included. Source folders stay (empty). Renaming files is **off by default** (camera file names are kept); optional pattern.
-- Journal written to Application Support **and** to `<project>/.hypershutter/journal.json`; one-click **Undo**.
-- Generate the shot index (4.5) and the contact sheets folder (one sheet per category, named by category number).
+### 6.7 Evaluation (the thesis results — do this early)
+- Input: an already-organized project (wedding 25 July primary, baptism 073 secondary). Ground truth = the folder each clip is in. Run read-only, hiding names/paths from the model.
+- Category names differ between runs, so use **grouping metrics**: Hungarian matching of predicted to true folders → matched accuracy and per-folder precision/recall; pairwise precision / recall / F1; Adjusted Rand Index; number of folders predicted vs true; boundary alignment on the timeline; clock-offset detection; cost and runtime.
+- **Ablation study** (key thesis result): time only vs time + camera vs + image vs + audio vs all signals; and frame density (1/4 s vs 1/2 s vs 1/1 s) on a subset.
+- **Ingest benchmark**: throughput with 1 / 2 / 3 destinations, verify overhead, proxy background impact.
+- Save Markdown + JSON in `reports/` (git-ignored if it contains client names). Iterate until the numbers are clearly good; report them to the user.
 
-### 6.7 Rest of the workflow (core — as in the workflow docs and the example)
-- **B-roll selection** exactly as done in the "βαφτιση b roll επιλογη" workflow.
-- **Premiere sequences**: a **ροή** (full flow) and a **highlights** sequence as Premiere-importable XML, with music from the project's music folder if present, plus low-res preview renders for checking — modeled on the two XMLs and previews in the example project.
+### 6.8 Review → organize
+- Review screen: categories with thumbnails; hover to scrub frames; play the proxy; drag clips between categories; rename / merge / split / reorder categories; filter "Needs review"; toggle ⭐.
+- After approval: **apply the same organization on every destination copy** so all drives stay identical (verify hash before moving), sidecars and proxies included. Source folders stay (empty). File renaming **off by default** (camera names kept).
+- Journal per drive (Application Support + `<project>/.hypershutter/journal.json`); one-click **Undo**.
+- Generate the shot index (4.5) and the contact sheets folder (one sheet per category, named by number).
+
+### 6.9 Drive monitoring
+- Live view of connected drives: capacity, used, free, project size, proxies size, projected space after ingest/proxies/export.
+- Warnings at configurable thresholds; ingest and export check space before starting.
+
+### 6.10 Batch export with presets
+- Select clips, whole categories or the whole project → export queue (per-clip transcodes; **no cutting or editing**).
+- Editable presets in `presets/export/*.yaml`, e.g. H.264 1080p review copies, HEVC 4K archive, ProRes 422 LT; optional LUT, resolution, bitrate, audio settings, naming.
+- Output mirrors the category structure; queue with progress, pause/resume, free-space check first.
 
 ## 7. The app (sections like a real Mac app)
 
-- **First-run onboarding**: welcome, language choice, ffmpeg check, API key (to Keychain), default backup drive.
-- **Projects / Home**: recent projects, drag & drop an event folder, event type selection, optional event name and day schedule.
-- **Scan & Analyze**: progress for scan, clock sync, checks, frames, description, structure; cost estimate and confirm.
-- **Review**: the main screen (6.6).
-- **Edit prep**: B-roll selection and Premiere export (6.7).
-- **Accuracy Lab**: run evaluation mode and view reports.
-- **Settings**: language, AI model, frame density, preset hints and naming style, per-camera clock offsets, rename pattern, backup destination, API key.
-- **Features** — "What HyperShutter can do": a clear page presenting the capabilities.
-- **Help & Support**: FAQ, "Contact support" (opens Mail with a pre-filled message to a support address set in config — placeholder until the user gives one), "Report a bug" (GitHub Issues link), "Export diagnostics" (logs and settings only — never footage, never the API key).
+- **First-run onboarding**: welcome, language, ffmpeg check, API key (Keychain), default destination drives.
+- **Projects / Home**: recent projects, new project (event type, names, date, optional day schedule).
+- **Ingest**: detected cards, source labels, destinations, pre-flight, live progress, verify status, reports.
+- **Analyze**: progress for scan, clock sync, checks, frames, audio, sorting; cost estimate and confirm.
+- **Review**: the main screen (6.8).
+- **Export**: batch export queue and presets (6.10).
+- **Drives**: drive monitoring (6.9); a compact drive status also visible in the sidebar.
+- **Background jobs** indicator (proxies, exports).
+- **Accuracy Lab**: evaluation runs and reports (6.7).
+- **Settings**: language, AI model, frame density, sorting preset hints and naming style, per-camera clock offsets, hash algorithm, proxy preset, export presets, warning thresholds, API key.
+- **Features** — "What HyperShutter can do".
+- **Help & Support**: FAQ, "Contact support" (Mail with a pre-filled message to a support address from config — placeholder until given), "Report a bug" (GitHub Issues), "Export diagnostics" (logs and settings only — never footage or the API key).
 - **About**: version, credits, licenses.
-- Standard macOS menu bar (HyperShutter, File, Edit, View, Window, Help) and keyboard shortcuts.
+- Standard macOS menu bar and keyboard shortcuts.
 
 ### Languages
-- **English (default) and Greek**, switchable in Settings and onboarding.
-- Every UI string goes through `locales/en.json` / `locales/el.json` — no hard-coded text. Folder names on disk are always Greeklish (4.3).
+- **English (default) and Greek**, switchable in Settings and onboarding. Every UI string goes through `locales/en.json` / `locales/el.json`. Folder names on disk are always Greeklish (4.3).
 
-## 8. Design (polish AFTER the core works — but put the tokens in place from day one)
+## 8. Design (polish AFTER the core works — tokens in place from day one)
 
 Look and feel: **professional, calm, luxurious**, like a premium native Mac app.
 
-- **Fonts**: the Apple system font through the CSS stack `-apple-system, BlinkMacSystemFont, "SF Pro Text", "SF Pro Display", system-ui`. Optional elegant serif for large headings via `ui-serif` (Apple's New York). Do **not** bundle Apple font files (license); use the system fonts.
-- **Colors** (CSS variables in `ui/css/tokens.css`):
-  - `--hs-white: #FFFFFF` — main background
-  - `--hs-gold: #A59769` — accent
-  - `--hs-slate: #405366` — primary color, text, primary buttons
-  - Tints/shades of these may be derived (e.g. a warm off-white surface, a deep slate for text).
-- **Accessibility**: gold on white has a contrast of about 2.8:1, too low for text. Use gold only for hairlines, icons, focus rings, active states and very large display elements. Text and buttons use slate (~8:1 on white).
-- Luxury cues: generous whitespace, thin 1px gold hairlines, refined small uppercase labels with letter spacing, large thumbnails, restrained 200–300 ms animations, no emoji, no loud gradients, sidebar navigation that feels native.
-- Imagery: at most one or two photos in the whole app (e.g. onboarding). Ask the user for them only in the design phase.
-- Logo and app icon: will be provided by the user in `assets/branding/` (SVG + 1024px PNG). Use a simple text placeholder until then.
+- **Fonts**: system stack `-apple-system, BlinkMacSystemFont, "SF Pro Text", "SF Pro Display", system-ui`; optional `ui-serif` (New York) for large headings. Do **not** bundle Apple font files.
+- **Colors** (`ui/css/tokens.css`): `--hs-white: #FFFFFF` background · `--hs-gold: #A59769` accent · `--hs-slate: #405366` primary, text, primary buttons. Derived tints/shades allowed.
+- **Accessibility**: gold on white ≈ 2.8:1 — too low for text. Gold only for hairlines, icons, focus rings, active states, very large display elements. Text and buttons in slate (~8:1).
+- Luxury cues: generous whitespace, 1px gold hairlines, small uppercase labels with letter spacing, large thumbnails, restrained 200–300 ms animations, no emoji, no loud gradients, native-feeling sidebar.
+- Imagery: at most one or two photos (e.g. onboarding); ask the user only in the design phase.
+- Logo and icon: provided later in `assets/branding/` (SVG + 1024px PNG); text placeholder until then.
 
 ## 9. GitHub
 
-- Check `gh` is installed and authenticated (`gh auth status`). If not, install with Homebrew and ask the user to run `gh auth login` himself (he enters his own credentials).
-- Create a **private** repository named `hypershutter` (it can be made public later for the CV) and push.
-- `.gitignore`: venv, caches, frames, `reports/` with client data, `.env`, `*.app` build output, macOS junk.
-- **Commit and push after every working change** with clear English messages — the user wants every change pushed. Tag `v0.1.0` when the first `.app` is packaged.
-- Keep `README.md` current: what it is, screenshots (later), how to install and run, architecture diagram, accuracy results.
+- Check `gh auth status`; if needed install with Homebrew and ask the user to run `gh auth login` himself.
+- **Private** repository `hypershutter` (can go public later for the CV).
+- `.gitignore`: venv, caches, frames, proxies, `reports/` with client data, `.env`, `*.app` build output, macOS junk.
+- **Commit and push after every working change** (clear English messages). Tag `v0.1.0` at the first packaged `.app`.
+- Keep `README.md` current: what it is, install/run, architecture diagram, evaluation and benchmark results.
 
-## 10. Milestones (no calendar — do them back to back)
+## 10. Status and remaining work
 
-- **M0 — Setup & learning**: repo + GitHub, venv, ffmpeg check, this file in the repo root, README skeleton. Read the workflow docs / old sessions (4.1) and the example project read-only (index, contact sheets, Premiere XMLs, a few ffprobes). Write the preset hints. Report findings in Greek.
-- **M1 — Scan, clock sync & checks (CLI)**: timeline with corrected capture times (must find the camera-A offset in the example), duplicates, corrupt files.
-- **M2 — Frames & contact sheets**: dense extraction + cache. **Show the user 2–3 contact sheets for approval.**
-- **M3 — Describe + structure + evaluation**: the two passes, smoothing, offline fallback, Accuracy Lab report on the baptism example. **Show the first accuracy report.** Iterate.
-- **M4 — App shell**: pywebview window, Home, Scan & Analyze, Review (functional, tokens applied, minimal styling).
-- **M5 — Apply**: backup, move, journal, undo, shot index, contact sheets folder. Unit tests. Verified on the test copy, including undo.
-- **M6 — Rest of the workflow**: B-roll selection and Premiere ροή / highlights XML + previews (6.7). Wedding support per the user's instructions and the wedding workflow doc, evaluated on the 25 July wedding.
-- **M7 — Complete app**: onboarding, Settings, EN/EL, Features, Help & Support, About, menus.
-- **M8 — Design pass**: luxury polish, logo and icon integration.
-- **M9 — Ship**: package `HyperShutter.app`, README with architecture and accuracy numbers, tag release.
-- **Stretch (only if time remains)**: drone clips grouped by GPS location; proxies; AI star suggestions.
+**Done before the scope change (7 Nov 2026) — keep it:** scan, clock sync from audio, checks; dense frames and contact sheets with cost estimate; two-pass sorting with offline fallback and evaluation (results in 4.6); app shell with Projects, Scan & Analyze, Review (move / rename / merge / split / reorder / stars), Accuracy Lab; apply with write-ahead journal, undo, verified backup, shot index and per-folder contact sheets.
+
+**Remaining, back to back** (Greek summary + commit + push after each):
+
+- **T1 — Scope cleanup**: create branch `edit-prep` from the current `main` to keep the editing work. On `main`, remove everything for editing: `core/edit.py`, `edit_wedding.py`, `premiere.py`, `xmeml.py`, `preview.py`, `music.py`, `library.py`, `prproj.py`, the CLI commands `broll` / `premiere`, the Edit prep screen, their tests and preset keys (e.g. `highlights`). Keep `transcribe.py` and `audio.py` (audio analysis). Replace CLAUDE.md with this file; update README. Tests green.
+- **T2 — Audio analysis in sorting + ablation study** (6.5, 6.6, 6.7): audio tags and Whisper phrases as text features in pass 1 / pass 2; then the ablation on the wedding and both baptisms (time only / + camera / + image / + audio / all) and the frame-density comparison. Reuse cached results where possible; run all of it without stopping to ask about cost. Write the results in `docs/` — this is the core of the thesis.
+- **T3 — Ingest engine** (6.1), building on the verified-copy code already in `execute.py`; tests incl. simulated corruption; throughput benchmark with 1 / 2 / 3 destinations.
+- **T4 — Background proxies + drive monitoring** (6.2, 6.9).
+- **T5 — Multi-drive organize**: the same apply / undo on every destination copy (6.8).
+- **T6 — Batch export with presets** (6.10).
+- **T7 — App**: Ingest, Drives and Export screens, background-jobs indicator; finish onboarding, Settings, EN/EL, Features, Help & Support, About, menus.
+- **T8 — Design pass** (section 8), logo and icon.
+- **T9 — Ship**: package `HyperShutter.app`, README with architecture, evaluation and benchmarks, tag `v0.1.0`.
+- **Stretch (only if time remains)**: drone clips grouped by GPS location; AI star suggestions.
