@@ -106,5 +106,8 @@ groupings with the user's own folders (details in [docs/m3](docs/m3-describe-str
 | Baptism, 267 clips | Opus 5.5, first prompts | 89.1% | 0.872 | 0.862 | 20 (17) | $7.69 |
 | Baptism, 267 clips | Opus 5.5, rules s2 | **97.8%** | **0.963** | **0.960** | **17 (17)** | +$0.38 |
 | **Held-out baptism, 249 clips** | Opus 5.5, rules s2 | **95.6%** | **0.915** | **0.905** | 14 (13) | $6.02 |
+| Second baptism, 249 clips | Opus 5.5, rules s4 | **96.0%** | **0.924** | **0.914** | 14 (13) | +$0.36 |
+| Wedding + baptism, 507 clips | Opus 5.5, first prompts | 82.5% | 0.835 | 0.815 | 24 (18) | $13.71 |
+| Wedding + baptism, 507 clips | Opus 5.5, rules s4 | **96.5%** | **0.952** | **0.947** | 19 (18) | +$0.68 |
 
-The s2 rules were tuned on the first baptism; the second one was never used for tuning.
+The s2 rules were tuned on the first baptism; the second one was never used for tuning in s2. s3 added wedding hints, and s4 brought back a general rule after s3 lowered the second baptism (see [docs/m3](docs/m3-describe-structure.md)).

@@ -120,3 +120,44 @@ exterior and interior folders are 100 % correct.
 Not usable as held-out events: 066, 067, 068 and 069. Their shot indexes list the clips, but
 only the drone footage is still on the T7. The camera footage was moved, and `eval` now stops
 before any API call in that case.
+
+## Wedding: gamos 25-07 (507 clips, 18 folders, a γαμοβάφτιση)
+
+A wedding and a baptism on the same day, two cameras, a drone and a sound recorder. The first
+run used the baptism-tuned rules; s3 and s4 added wedding hints to the preset.
+
+| Run | Rules | Matched acc. | Pairwise F1 | ARI | Folders (truth) | Boundary F1 | Cost |
+|---|---|---|---|---|---|---|---|
+| first run | s2 | 82.5% | 0.835 | 0.815 | 24 (18) | 0.847 | $13.71 |
+| wedding hints | s3 | 93.1% | 0.862 | 0.846 | 19 (18) | 0.837 | +$0.68 |
+| general split rule restored | s4 | **96.5%** | **0.952** | **0.947** | 19 (18) | **0.924** | +$0.68 |
+
+What changed:
+- **s3** made the reception rule preset-specific. A baptism keeps the reception as one part; a
+  wedding splits it into decor vs people & food. The wedding preset also got its own parts: the
+  village as a separate part, ΕΚΚΛΗΣΙΑ & ΑΦΙΞΗ ΚΟΣΜΟΥ as one part, ΒΑΦΤΙΣΗ ΡΟΗ / B-ROLL including
+  the catechism, all dancing in ΧΟΡΟΣ, and "nothing is thrown away".
+- **s4** put back the general rule "do not split one continuous stretch at the same place by
+  subject", with the exceptions each preset keeps apart. s3 had dropped it, and 071 went down to
+  91.2% because of that.
+
+There are 19 misplaced clips left after s4:
+- **Village establishing shots (7):** bell tower, plane trees and the stone terrace, filmed during
+  the preparation or the reception. The user collects them in «ΧΩΡΙΟ & ΤΟΠΟΘΕΣΙΑ»; the model
+  keeps them in the part where they were filmed.
+- **Details vs groom preparation (3):** the groom's shoes and jacket. This boundary is ambiguous.
+- **Dancing among the tables (3):** the user's folder is the reception, the model's is the dance.
+- **Others (6):** a bride close-up from camera B, a girl on the stairs, the scooter through the
+  crowd (exit vs photo shoot), a toast (decor vs people), an interview at the dance, and one
+  accidental road shot. The model sent the road shot to 99; the user keeps everything.
+
+## s3 and s4 on the baptisms
+
+| Event | s2 | s3 | s4 |
+|---|---|---|---|
+| 073 (tuning) | 97.8% | 97.8% | **97.8%** |
+| 071 | 95.6% | 91.2% | **96.0%** |
+
+Re-running pass 2 only costs $0.36–0.39 per baptism, because pass 1 is cached. 071 is no longer
+strictly held-out: its drop in s3 is what showed that the general rule was needed. The rule itself
+is the one written for 073 in s2, so no 071-specific case was added.
