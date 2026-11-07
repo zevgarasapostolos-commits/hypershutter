@@ -17,7 +17,8 @@ for pkg in ("mlx", "mlx_whisper", "sherpa_onnx", "webview", "tiktoken", "tiktoke
     hiddenimports += h
 
 a = Analysis([str(ROOT / "hypershutter" / "app" / "launch.py")], pathex=[str(ROOT)], binaries=binaries, datas=datas,
-             hiddenimports=hiddenimports, excludes=["tkinter", "pytest", "IPython", "matplotlib"], noarchive=False)
+             hiddenimports=hiddenimports, excludes=["tkinter", "pytest", "IPython", "matplotlib", "torch", "torchvision", "torchaudio",
+                       "transformers", "tensorflow", "jax", "pandas", "sympy"], noarchive=False)
 pyz = PYZ(a.pure)
 exe = EXE(pyz, a.scripts, [], exclude_binaries=True, name="HyperShutter", console=False, argv_emulation=False,
           target_arch="arm64", upx=False)

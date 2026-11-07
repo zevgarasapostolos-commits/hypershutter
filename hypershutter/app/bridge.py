@@ -98,7 +98,8 @@ class Bridge:
     def recent(self) -> list[dict]:
         out = []
         for r in store.recent_projects():
-            out.append({**r, "available": Path(r["root"]).is_dir()})
+            now = store.locate(r["root"])
+            out.append({**r, "root": now or r["root"], "available": now is not None})
         return out
 
     def pick_folder(self) -> str | None:

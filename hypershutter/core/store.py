@@ -54,6 +54,21 @@ def save_project(root: Path, data: dict) -> None:
                    (project_id(root), root.name, str(root), json.dumps(data, ensure_ascii=False), time.time()))
 
 
+def locate(root: str) -> str | None:
+    """The event folder now, when its drive mounted under another name ("T7" <-> "T7 1"): the same
+    path on another volume. Only that exact path is tested on each volume; nothing is listed."""
+    p = Path(root)
+    if p.is_dir():
+        return str(p)
+    parts = p.parts
+    if len(parts) > 3 and parts[1] == "Volumes":
+        rest = Path(*parts[3:])
+        for v in sorted(Path("/Volumes").iterdir()):
+            if (v / rest).is_dir():
+                return str(v / rest)
+    return None
+
+
 def recent_projects(limit: int = 12) -> list[dict]:
     with connect() as db:
         rows = db.execute("SELECT name, root, updated FROM projects ORDER BY updated DESC LIMIT ?", (limit,)).fetchall()
