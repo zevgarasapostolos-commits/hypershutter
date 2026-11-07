@@ -14,6 +14,7 @@ from __future__ import annotations
 
 import json
 import os
+import threading
 import subprocess
 import time
 from pathlib import Path
@@ -27,6 +28,7 @@ from hypershutter.core.media import VIDEO_EXT
 
 PROXY_DIR = "Proxies"
 DEFAULT = "prores_proxy"
+INGESTING = threading.Event()        # set while a card copies: proxies then yield the disk and the CPU
 
 
 def presets() -> dict[str, dict]:
@@ -66,7 +68,11 @@ def command(src: Path, out: Path, preset: dict, fallback: bool = False) -> list[
            "-map_metadata", "0", "-vf", f"scale='min({preset['width']},iw)':-2", "-c:v", venc, *vargs,
            *preset["audio"]["args"], "-progress", "pipe:1", "-nostats", str(out)]
     tp = "/usr/sbin/taskpolicy"
-    return ([tp, "-b"] + cmd) if os.path.exists(tp) else cmd     # background QoS: never slows ingest
+    if not os.path.exists(tp):
+        return cmd
+    # while a card copies: background QoS (throttled CPU and disk, never slows the ingest);
+    # otherwise utility QoS, which still leaves the app responsive but runs several times faster
+    return [tp, "-b"] + cmd if INGESTING.is_set() else [tp, "-c", "utility"] + cmd
 
 
 def build(src: Path, out: Path, preset_name: str = DEFAULT, progress: Callable[[float], None] | None = None) -> int:

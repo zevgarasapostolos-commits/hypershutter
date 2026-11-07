@@ -93,7 +93,12 @@
     updateNav();
     if (v === "review" && !S.review) S.review = await call("review");
     if (HS.screens[v] && HS.screens[v].load) await HS.screens[v].load();
+    view.classList.remove("enter");
+    void view.offsetWidth;                      // the entrance plays once, on a change of screen …
+    view.classList.add("enter");
     render();
+    clearTimeout(go.calm);
+    go.calm = setTimeout(() => view.classList.remove("enter"), 400);   // … not again on every re-render
   }
 
   function render() {

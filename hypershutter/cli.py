@@ -372,7 +372,12 @@ def cmd_ingest(args) -> int:
         q.start()                                   # background priority, while the card copies
         print(f"  proxies ({args.proxy}) start as soon as each clip is verified on {dests[0]}")
     on_verified = (lambda root, rel: proxies.enqueue(q, root, [rel], args.proxy)) if q else None
-    r = ingest.ingest(card, args.project, label, dests, args.proxy, progress=show, on_verified=on_verified)
+    from hypershutter.core import proxies as _px
+    _px.INGESTING.set()
+    try:
+        r = ingest.ingest(card, args.project, label, dests, args.proxy, progress=show, on_verified=on_verified)
+    finally:
+        _px.INGESTING.clear()
     for d in r.dests:
         print(f"  {d['root']}: {d['verified']}/{r.files} verified, write {d['write_mb_s']} MB/s, "
               f"verify {d['verify_mb_s']} MB/s, MHL {Path(d['mhl']).name}")

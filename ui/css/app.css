@@ -297,7 +297,7 @@ pre.report { max-height: 520px; overflow: auto; }
 .faq p { margin: 8px 0 0; line-height: 1.55; }
 
 /* calm entrance for every screen */
-.view > * { animation: hs-rise var(--hs-dur) var(--hs-ease) both; }
+.view.enter > * { animation: hs-rise var(--hs-dur) var(--hs-ease) both; }
 @keyframes hs-rise { from { opacity: 0; transform: translateY(4px); } to { opacity: 1; transform: none; } }
-@media (prefers-reduced-motion: reduce) { .view > * { animation: none; } }
+@media (prefers-reduced-motion: reduce) { .view.enter > * { animation: none; } }
 :focus-visible { outline: 2px solid var(--hs-focus); outline-offset: 2px; }

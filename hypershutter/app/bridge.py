@@ -383,10 +383,24 @@ class Bridge:
     def ingest_preflight(self, card: str, project: str, label: str, dests: list[str]) -> dict:
         c = cards.read_card(Path(card))
         jobs_ = ingest.plan(c, label or "card")
-        proxy = settings.load()["proxy_preset"] if settings.load()["make_proxies"] else "none"
-        problems = ingest.preflight(c, jobs_, [Path(d) for d in dests], project, proxy) if dests and project else []
-        return {"files": len(jobs_), "gb": round(c.bytes / 1e9, 2), "problems": problems,
-                "targets": [str(Path(d) / project / (label or "card")) for d in dests]}
+        s = settings.load()
+        proxy = s["proxy_preset"] if s["make_proxies"] else "none"
+        detail = ingest.check(c, jobs_, [Path(d) for d in dests], project or "_", proxy)
+        if not project:
+            detail["problems"] = [p for p in detail["problems"] if p["code"] != "space"]
+        return {"files": len(jobs_), "gb": round(c.bytes / 1e9, 2), **detail, "make_proxies": s["make_proxies"],
+                "targets": [str(Path(d) / project / (label or "card")) for d in dests] if project else []}
+
+    def eject_card(self, path: str) -> dict:
+        """Eject the card from macOS once it is safe; never formats or writes to it."""
+        st = self._ingest or {}
+        rep = st.get("report") or {}
+        if not rep.get("safe") or st.get("card_path") != path:
+            raise RuntimeError("the card is not verified on every drive yet")
+        r = subprocess.run(["diskutil", "eject", path], capture_output=True, text=True, timeout=60)
+        if r.returncode != 0:
+            raise RuntimeError(r.stderr.strip() or r.stdout.strip() or "could not eject")
+        return {"ejected": path}
 
     def start_ingest(self, card: str, project: str, label: str, dests: list[str]) -> dict:
         if self._ingest and self._ingest.get("status") == "running":
@@ -394,7 +408,7 @@ class Bridge:
         s = settings.load()
         proxy = s["proxy_preset"] if s["make_proxies"] else "none"
         c = cards.read_card(Path(card))
-        self._ingest = {"status": "running", "card": c.name, "project": project, "label": label}
+        self._ingest = {"status": "running", "card": c.name, "card_path": c.path, "project": project, "label": label}
 
         def progress(ev: dict) -> None:
             self._emit(type="ingest", **ev)
@@ -404,6 +418,7 @@ class Bridge:
                 proxies.enqueue(self._queue, root, [rel], proxy)
 
         def run() -> None:
+            proxies.INGESTING.set()
             try:
                 r = ingest.ingest(c, project, label, [Path(d) for d in dests], proxy, progress=progress,
                                   on_verified=on_verified)
@@ -411,11 +426,13 @@ class Bridge:
                                                            "copied": r.copied, "skipped": r.skipped,
                                                            "failed": r.failed, "dests": r.dests,
                                                            "seconds": r.seconds, "gb": round(r.bytes / 1e9, 2)})
-                self._emit(type="ingest_done", report=self._ingest["report"])
+                self._emit(type="ingest_done", report=self._ingest["report"], card_path=c.path)
             except Exception as e:
                 traceback.print_exc()
                 self._ingest.update(status="error", error=str(e))
                 self._emit(type="ingest_error", error=str(e))
+            finally:
+                proxies.INGESTING.clear()
 
         threading.Thread(target=run, daemon=True).start()
         return {"started": True}

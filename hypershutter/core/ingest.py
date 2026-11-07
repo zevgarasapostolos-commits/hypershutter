@@ -146,36 +146,55 @@ def _free(path: Path) -> int:
     return shutil.disk_usage(p).free
 
 
-def preflight(card: Card, jobs: list[Job], dests: list[Path], project: str, proxy: str = "prores_proxy") -> list[str]:
-    """Problems that block the ingest: a destination on the card, not writable, or short of space
-    (card data not yet there + proxies on the first destination + a margin), per physical drive."""
-    problems = []
+def check(card: Card, jobs: list[Job], dests: list[Path], project: str, proxy: str = "prores_proxy") -> dict:
+    """The pre-flight in detail: what blocks the ingest (codes the app can translate), what each
+    drive must hold (card data not yet there + proxies on the first destination + a margin, per
+    physical drive) and how much it has free."""
+    problems: list[dict] = []
     need: dict[int, int] = {}
     free: dict[int, int] = {}
+    where: dict[int, str] = {}
+    card_bytes = sum(j.size for j in jobs)
+    proxy_bytes = int(card_bytes * PROXY_RATIO.get(proxy, 0.35))
+    drives = []
     for k, d in enumerate(dests):
         d = Path(d)
         if _inside(d, Path(card.path)) or _inside(Path(card.path), d):
-            problems.append(f"{d}: a destination cannot be on the card")
+            problems.append({"code": "on_card", "path": str(d)})
             continue
         p = d
         while not p.exists():
             p = p.parent
         if not os.access(p, os.W_OK):
-            problems.append(f"{d}: not writable")
+            problems.append({"code": "not_writable", "path": str(d)})
             continue
         m = Manifest(d / project)
         missing = sum(j.size for j in jobs if not m.verified(j.rel, j.size))
         if k == 0:
-            missing += int(sum(j.size for j in jobs) * PROXY_RATIO.get(proxy, 0.35))
+            missing += proxy_bytes
         key = _volume_key(d)
         need[key] = need.get(key, 0) + missing
         free[key] = _free(d)
+        where.setdefault(key, str(d))
+        drives.append({"path": str(d), "free_gb": round(_free(d) / 1e9, 1)})
     for key, n in need.items():
         total = n + (MARGIN_BYTES + n // 100 if n else 0)
         if total > free[key]:
-            where = next(str(d) for d in dests if _volume_key(Path(d)) == key)
-            problems.append(f"{where}: needs {total / 1e9:.1f} GB, only {free[key] / 1e9:.1f} GB free")
-    return problems
+            problems.append({"code": "space", "path": where[key], "need_gb": round(total / 1e9, 1),
+                             "free_gb": round(free[key] / 1e9, 1)})
+    with_proxies = card_bytes + proxy_bytes
+    margin = MARGIN_BYTES + with_proxies // 100                 # the same rule as the space check above
+    bare_margin = MARGIN_BYTES + card_bytes // 100
+    return {"problems": problems, "drives": drives, "card_gb": round(card_bytes / 1e9, 1),
+            "proxies_gb": round(proxy_bytes / 1e9, 1), "margin_gb": round(margin / 1e9, 1),
+            "without_proxies_gb": round((card_bytes + bare_margin) / 1e9, 1)}
+
+
+def preflight(card: Card, jobs: list[Job], dests: list[Path], project: str, proxy: str = "prores_proxy") -> list[str]:
+    """Problems that block the ingest, as English sentences (CLI, errors)."""
+    text = {"on_card": "{path}: a destination cannot be on the card", "not_writable": "{path}: not writable",
+            "space": "{path}: needs {need_gb:.1f} GB, only {free_gb:.1f} GB free"}
+    return [text[p["code"]].format(**p) for p in check(card, jobs, dests, project, proxy)["problems"]]
 
 
 def _resolve_conflicts(card: Card, jobs: list[Job], states: list[DestState]) -> int:

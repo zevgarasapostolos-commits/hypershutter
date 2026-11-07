@@ -321,5 +321,14 @@
   "about.version": "Version {v}",
   "about.text": "An ingest, archiving and automatic sorting system for wedding videography footage. Undergraduate thesis, Department of Digital Systems, University of Thessaly.",
   "about.credits": "Made by Apostolos (Digital Systems, University of Thessaly).",
-  "about.licenses": "Open-source software"
+  "about.licenses": "Open-source software",
+  "ingest.free": "{gb} GB free",
+  "ingest.need_with": "Needed: card {card} GB + proxies {proxies} GB + margin {margin} GB.",
+  "ingest.need_without": "Needed: card {card} GB + margin {margin} GB (no proxies).",
+  "ingest.hint_no_proxies": "Without proxies the card needs {gb} GB: untick “Make proxies” or add a bigger drive.",
+  "ingest.p_space": "{path}: needs {need} GB, has {free} GB free.",
+  "ingest.p_on_card": "{path} is on the card itself: choose another drive.",
+  "ingest.p_not_writable": "{path} cannot be written to.",
+  "ingest.eject": "Eject card",
+  "ingest.ejected": "Card ejected. You can remove it."
 }

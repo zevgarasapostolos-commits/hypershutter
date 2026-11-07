@@ -112,9 +112,13 @@
       };
   }
 
-  function destList(list, id) {
+  function destList(list, id, free) {
     return `<ul class="dest-list" id="${id}">${list
-      .map((d, i) => `<li><code>${esc(d)}</code> <button class="btn small quiet" data-rm="${i}">${esc(t("ingest.remove"))}</button></li>`)
+      .map((d, i) => {
+        const f = free && free.find((x) => x.path === d);
+        return `<li><code>${esc(d)}</code>${f ? ` <span class="muted">${esc(t("ingest.free", { gb: f.free_gb }))}</span>` : ""}
+          <button class="btn small quiet" data-rm="${i}">${esc(t("ingest.remove"))}</button></li>`;
+      })
       .join("")}</ul><button class="btn small" id="${id}-add">${esc(t("ingest.add_dest"))}</button>`;
   }
 
@@ -167,6 +171,16 @@
         if (p) chooseCard(await call("read_folder_as_card", { path: p }));
       };
       if (X.card) bindSetup(running);
+      const ej = $("#eject");
+      if (ej)
+        ej.onclick = async () => {
+          await call("eject_card", { path: X.ingest.card_path });
+          U().toast(t("ingest.ejected"));
+          X.cards = await call("cards");
+          X.card = null;
+          X.ingest = null;
+          HS.screens.ingest.render();
+        };
     },
   };
 
@@ -183,15 +197,29 @@
     X.pre = await call("ingest_preflight", { card: X.card.path, project: X.project, label: X.label, dests: X.dests });
   }
 
+  function problemText(p) {
+    return t("ingest.p_" + p.code, { path: p.path, need: p.need_gb, free: p.free_gb });
+  }
+
   function setupCard() {
-    const P = X.pre || { problems: [], targets: [] };
+    const P = X.pre || { problems: [], targets: [], drives: [] };
     const ready = X.project && X.label && X.dests.length && !P.problems.length;
+    const space = P.card_gb != null && X.dests.length
+      ? `<p class="muted">${esc(P.make_proxies
+          ? t("ingest.need_with", { card: P.card_gb, proxies: P.proxies_gb, margin: P.margin_gb })
+          : t("ingest.need_without", { card: P.card_gb, margin: P.margin_gb }))}</p>`
+      : "";
+    const noProxyHint = P.make_proxies && P.problems.some((p) => p.code === "space")
+      ? `<p class="hint">${esc(t("ingest.hint_no_proxies", { gb: P.without_proxies_gb }))}</p>` : "";
     return `<section class="card"><h2 class="card-title">${esc(t("ingest.setup", { card: X.card.name }))}</h2>
       <label class="field"><span class="label">${esc(t("ingest.label"))}</span><input id="in-label" value="${esc(X.label)}" placeholder="cam apos"><span class="hint">${esc(t("ingest.label_hint"))}</span></label>
       <label class="field"><span class="label">${esc(t("ingest.project"))}</span><input id="in-project" value="${esc(X.project)}" placeholder="074 Γ15-11-2026"><span class="hint">${esc(t("ingest.project_hint"))}</span></label>
-      <div class="field"><span class="label">${esc(t("ingest.dests"))}</span>${destList(X.dests, "in-dest")}</div>
+      <div class="field"><span class="label">${esc(t("ingest.dests"))}</span>${destList(X.dests, "in-dest", P.drives)}</div>
+      <label class="toggle"><input type="checkbox" id="in-proxies" ${P.make_proxies ? "checked" : ""}> ${esc(t("set.make_proxies"))}</label>
       ${P.targets.length ? `<p class="muted">${esc(t("ingest.into"))} ${P.targets.map((x) => `<code>${esc(x)}</code>`).join(" · ")}</p>` : ""}
-      ${P.problems.map((x) => `<p class="warn">${esc(x)}</p>`).join("")}
+      ${space}
+      ${P.problems.map((x) => `<p class="warn">${esc(problemText(x))}</p>`).join("")}
+      ${noProxyHint}
       <p class="hint">${esc(t("ingest.rules"))}</p>
       <div class="actions"><button class="btn primary" id="in-start" ${ready ? "" : "disabled"}>${esc(t("ingest.start", { n: X.card.files, gb: X.card.gb }))}</button></div></section>`;
   }
@@ -205,6 +233,11 @@
     };
     $("#in-label").onchange = upd;
     $("#in-project").onchange = upd;
+    $("#in-proxies").onchange = async (e) => {
+      await call("save_settings", { changes: { make_proxies: e.target.checked } });
+      await preflight();
+      HS.screens.ingest.render();
+    };
     bindDestList("in-dest", X.dests, async (list) => {
       X.dests = list;
       await preflight();
@@ -231,7 +264,8 @@
         <table class="table"><thead><tr><th>${esc(t("ingest.dest"))}</th><th class="num">${esc(t("ingest.verified"))}</th><th class="num">${esc(t("ingest.write"))}</th><th class="num">${esc(t("ingest.verify"))}</th></tr></thead><tbody>${R.dests
           .map((d) => `<tr><td><code>${esc(d.root)}</code></td><td class="num">${d.verified}/${R.files}</td><td class="num">${d.write_mb_s ?? "–"} MB/s</td><td class="num">${d.verify_mb_s ?? "–"} MB/s</td></tr>`)
           .join("")}</tbody></table>
-        ${R.failed.map((f) => `<p class="warn">${esc(f.dest)}: ${esc(f.file)} (${esc(f.why)})</p>`).join("")}</section>`;
+        ${R.failed.map((f) => `<p class="warn">${esc(f.dest)}: ${esc(f.file)} (${esc(f.why)})</p>`).join("")}
+        ${R.safe && I.card_path ? `<div class="actions"><button class="btn" id="eject">${esc(t("ingest.eject"))}</button></div>` : ""}</section>`;
     }
     const P = I.progress || {};
     return `<section class="card"><h2 class="card-title">${esc(t("ingest.phase." + (P.phase || "copy")))} · ${P.done || 0}/${P.total || 0}</h2>
@@ -530,7 +564,7 @@
       X.ingest = { progress: ev };
       if (U().S.view === "ingest") HS.screens.ingest.render();
     } else if (ev.type === "ingest_done") {
-      X.ingest = { report: ev.report };
+      X.ingest = { report: ev.report, card_path: ev.card_path };
       HS.call("ingest_history").then((h) => ((X.history = h), U().S.view === "ingest" && HS.screens.ingest.render()));
       U().toast(ev.report.safe ? t("ingest.safe") : t("ingest.not_safe"), !ev.report.safe);
     } else if (ev.type === "ingest_error") {

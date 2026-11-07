@@ -156,3 +156,15 @@ def test_a_working_drive_is_never_taken_for_a_card(tmp_path, monkeypatch):
     assert cards.looks_like_card(drive)                  # a small card with WAVs at the root: a recorder
     (drive / "DCIM").mkdir()
     assert cards.looks_like_card(drive)
+
+
+def test_preflight_detail_adds_up_and_explains(tmp_path, monkeypatch):
+    card = cards.read_card(sony_card(tmp_path / "card"))
+    jobs = ingest.plan(card, "A")
+    monkeypatch.setattr(ingest, "_free", lambda p: 10)
+    d = ingest.check(card, jobs, [tmp_path / "driveA"], "E", "prores_proxy")
+    p = d["problems"][0]
+    assert p["code"] == "space" and p["free_gb"] == 0.0
+    assert abs(d["card_gb"] + d["proxies_gb"] + d["margin_gb"] - p["need_gb"]) < 0.15     # the breakdown adds up
+    assert d["without_proxies_gb"] <= p["need_gb"]
+    assert ingest.check(card, jobs, [tmp_path / "card" / "x"], "E")["problems"][0]["code"] == "on_card"
