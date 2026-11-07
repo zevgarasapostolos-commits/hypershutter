@@ -1,5 +1,5 @@
 # Wedding (γάμος) — HINTS ONLY, never a fixed list. Same principles as baptisms.
-# The user will give detailed wedding instructions at M6.
+# Source: docs/workflow-organizing.md §4.3 and docs/workflow-baptism.md Appendix E.
 
 event_type: wedding
 
@@ -33,6 +33,9 @@ typical_parts:
     cues: "ceremony: rings (αρραβώνας), crowns (στέφανα), Apostle, Gospel, common cup (κοινό ποτήριο), «Ησαΐα χόρευε», dismissal"
   - label: "ΓΑΜΟΣ — ΕΞΟΔΟΣ & ΕΥΧΕΣ"
     cues: "leaving the church, rice, wishes at the door"
+  - label: "ΒΑΦΤΙΣΗ"
+    split: true
+    cues: "only when a baptism happens the same day (γαμοβάφτιση): its own ceremony pair after the wedding, same rules as a baptism (catechism + sacrament at the font)"
   - label: "ΦΩΤΟΓΡΑΦΗΣΗ ΖΕΥΓΑΡΙΟΥ"
     cues: "couple photo session; add the theme if clear, e.g. (ΒΕΣΠΑ)"
   - label: "ΑΦΙΞΗ ΖΕΥΓΑΡΙΟΥ ΣΤΗ ΔΕΞΙΩΣΗ"
@@ -49,3 +52,5 @@ rules:
   - "An event can be a wedding AND a baptism on the same day: then build both ceremony sets (ΓΑΜΟΣ ΡΟΗ/B-ROLL and ΒΑΦΤΙΣΗ ΡΟΗ/B-ROLL)."
   - "A folder named CLIP2 is not necessarily a second camera: if numbering continues without a gap and codec/resolution match, it is the same camera on another card or day."
   - "With a single camera there may be no B-ROLL for the ceremony at all; say so explicitly."
+  - "Material from another day (e.g. a baby studio shoot) gets its own folder with the date in the name."
+  - "Every posed group and every party shot belongs somewhere: nothing is thrown away (docs/workflow-baptism.md, Appendix E)."

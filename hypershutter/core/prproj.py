@@ -16,6 +16,12 @@ from pathlib import Path
 TICKS = 254016000000
 
 
+def _db(v: float) -> float:
+    """Premiere's internal clip volume (1.0 = +15 dB) to dB."""
+    import math
+    return 20 * math.log10(max(v, 1e-6)) + 15
+
+
 @dataclass
 class TrackItem:
     track: str            # V1, V2, A1 …
@@ -29,6 +35,15 @@ class TrackItem:
     kind: str = "clip"    # clip | nested | graphic | other
     nested: str = ""      # nested sequence name
     effects: list[str] = field(default_factory=list)
+    gain_db: list[float] = field(default_factory=list)   # audio: clip volume levels (constant or keyframes), dB
+
+    @property
+    def level_db(self) -> float | None:
+        """Typical clip volume: the median of its levels (0 dB = unchanged)."""
+        if not self.gain_db:
+            return None
+        g = sorted(self.gain_db)
+        return g[len(g) // 2]
 
     @property
     def duration(self) -> float:
@@ -154,7 +169,27 @@ class Project:
             speed = float(clip.findtext("Clip/PlaybackSpeed") or 1.0)
             kind, path, title = self._media_path(self.ref(clip.find("Clip/Source")))
         info.items.append(TrackItem(track, start, end, name or title, path if kind != "nested" else "", src_in, src_out,
-                                    speed, kind, path if kind == "nested" else "", self._effects(item)))
+                                    speed, kind, path if kind == "nested" else "", self._effects(item),
+                                    self._gain(item) if track.startswith("A") else []))
+
+    def _gain(self, item: ET.Element) -> list[float]:
+        chain = self.ref(item.find("ClipTrackItem/ComponentOwner/Components"))
+        if chain is None:
+            return []
+        for comp in chain.iter("Component"):
+            c = self.ref(comp)
+            if c is None or "Volume" not in (c.findtext("FilterMatchName") or ""):
+                continue
+            for p in c.iter("Param"):
+                par = self.ref(p)
+                if par is None or par.find("StartKeyframe") is None:
+                    continue
+                keys = par.findtext("Keyframes") or ""
+                vals = [float(k.split(",")[1]) for k in keys.split(";") if k.count(",") >= 1] if keys else []
+                if not vals:
+                    vals = [float((par.findtext("CurrentValue") or par.findtext("StartKeyframe").split(",")[1]))]
+                return [round(_db(v), 1) for v in vals]
+        return []
 
     def _markers(self, seq: ET.Element) -> list[tuple[float, str]]:
         out = []
