@@ -20,7 +20,7 @@ from hypershutter.core.media import Clip, fmt_duration
 from hypershutter.core.project import Project
 
 FLOW, BROLL, NORMAL, DRONE, UNUSABLE = "ceremony_flow", "ceremony_broll", "normal", "drone", "unusable"
-PROMPT_VERSION = "s2"
+PROMPT_VERSION = "s3"
 REVIEW_BELOW = 0.6
 FLOW_MIN_S = 45.0                    # a ΡΟΗ master is a long main-camera take
 BROLL_MAX_IN_FLOW_S = 30.0
@@ -60,10 +60,8 @@ interleave in time (decor shot between portraits stays decor).
 - Everything filmed inside the time window of a ceremony (catechism, sacrament, wedding service) belongs to \
 that ceremony; things filmed before it belong to arrival, portraits, decor, etc.
 - Start a new part when a new activity starts (a ceremony, treats, a photo shoot, face painting, live music, \
-dancing) or the place changes. Do not split one continuous stretch at the same place by subject: at the \
-reception the venue, set tables, food, guests arriving and sitting and kids playing around are one part. \
-(Before the ceremony the subject parts of the preset do stay apart: decor, details, interior, exterior, \
-portraits, arrival.)
+dancing) or the place changes, and otherwise follow the preset's parts: they say where this kind of event \
+keeps subjects apart (decor, details, portraits, arrival…) and where one place stays one part.
 - Portraits vs arrival: portraits are shots the videographer sets up of the main people (the family with the \
 baby, the couple) and holds long, usually 7 s or more; they can be playful rather than stiff. Arrival is \
 candid: guests arriving, greeting, chatting, kids playing, and quick snapshots of about 5 s or less, even \
