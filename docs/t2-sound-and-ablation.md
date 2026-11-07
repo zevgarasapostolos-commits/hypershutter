@@ -109,7 +109,114 @@ main-camera takes as ΡΟΗ, same-camera smoothing. Without the camera signal th
 
 ## 3. Results
 
-RESULTS
+**Matched accuracy (%)** (mean ± sd over repeats; n = repeats)
+
+| Signals | Wedding + baptism (507 clips) | Baptism 073 (267, tuning) | Baptism 071 (249) |
+|---|---|---|---|
+| offline: time gaps | 45.4 | 46.1 | 20.5 |
+| offline: time gaps + sound | 60.6 | 56.5 | 40.6 |
+| time | 73.2 ± 1.1 | 70.7 ± 6.6 | 60.5 ± 4.3 |
+| time + camera | 75.2 ± 0.5 | 73.9 ± 12.6 | 62.4 ± 2.2 |
+| time + camera + sound | 75.6 ± 0.7 | – | 63.9 ± 2.1 |
+| time + camera + image | 93.2 ± 1.1 | 97.8 ± 0.0 | 95.7 ± 0.3 |
+| all (sound in pass 2 only) | 93.7 ± 0.5 | – | 95.3 ± 0.9 |
+| all | 94.1 ± 0.0 | – | 94.2 ± 1.1 |
+
+**Pairwise F1** (mean ± sd over repeats; n = repeats)
+
+| Signals | Wedding + baptism (507 clips) | Baptism 073 (267, tuning) | Baptism 071 (249) |
+|---|---|---|---|
+| offline: time gaps | 0.447 | 0.290 | 0.215 |
+| offline: time gaps + sound | 0.613 | 0.486 | 0.327 |
+| time | 0.696 ± 0.021 | 0.716 ± 0.054 | 0.554 ± 0.034 |
+| time + camera | 0.701 ± 0.047 | 0.746 ± 0.128 | 0.567 ± 0.006 |
+| time + camera + sound | 0.759 ± 0.013 | – | 0.551 ± 0.039 |
+| time + camera + image | 0.893 ± 0.030 | 0.963 ± 0.000 | 0.917 ± 0.007 |
+| all (sound in pass 2 only) | 0.909 ± 0.004 | – | 0.908 ± 0.012 |
+| all | 0.911 ± 0.000 | – | 0.890 ± 0.019 |
+
+**Adjusted Rand Index** (mean ± sd over repeats; n = repeats)
+
+| Signals | Wedding + baptism (507 clips) | Baptism 073 (267, tuning) | Baptism 071 (249) |
+|---|---|---|---|
+| offline: time gaps | 0.354 | 0.177 | 0.023 |
+| offline: time gaps + sound | 0.568 | 0.439 | 0.279 |
+| time | 0.656 ± 0.023 | 0.687 ± 0.060 | 0.499 ± 0.036 |
+| time + camera | 0.664 ± 0.051 | 0.721 ± 0.143 | 0.514 ± 0.008 |
+| time + camera + sound | 0.726 ± 0.015 | – | 0.490 ± 0.049 |
+| time + camera + image | 0.881 ± 0.033 | 0.960 ± 0.000 | 0.907 ± 0.007 |
+| all (sound in pass 2 only) | 0.898 ± 0.004 | – | 0.897 ± 0.013 |
+| all | 0.901 ± 0.000 | – | 0.876 ± 0.021 |
+
+**Boundary F1** (mean ± sd over repeats; n = repeats)
+
+| Signals | Wedding + baptism (507 clips) | Baptism 073 (267, tuning) | Baptism 071 (249) |
+|---|---|---|---|
+| offline: time gaps | 0.392 | 0.394 | 0.396 |
+| offline: time gaps + sound | 0.477 | 0.523 | 0.583 |
+| time | 0.279 ± 0.007 | 0.582 ± 0.133 | 0.568 ± 0.016 |
+| time + camera | 0.531 ± 0.008 | 0.736 ± 0.128 | 0.697 ± 0.013 |
+| time + camera + sound | 0.560 ± 0.056 | – | 0.644 ± 0.020 |
+| time + camera + image | 0.812 ± 0.015 | 0.932 ± 0.000 | 0.938 ± 0.017 |
+| all (sound in pass 2 only) | 0.816 ± 0.006 | – | 0.913 ± 0.016 |
+| all | 0.817 ± 0.000 | – | 0.927 ± 0.008 |
+
+"–": the sound conditions of baptism 073 are still to run. The API credit ran out before their pass 1
+(see the README status).
+
+### What each signal adds
+
+1. **Capture time alone already gets most clips into roughly the right part.**
+   - Given only times and durations, the model reaches 61–73% matched accuracy. The time-gap
+     segmentation without a model reaches only 21–46%.
+   - The boundaries are the weak point (boundary F1 0.28–0.58). Without pictures, the model must
+     guess where one part ends and the next begins inside a continuous stretch of the day.
+2. **The camera adds a little (+1–3 points).**
+   - It helps most with the boundaries: boundary F1 0.28 → 0.53 on the wedding, 0.58 → 0.74 on
+     073, 0.57 → 0.70 on 071.
+   - Drone clips get their own folder, and long main-camera takes become the ceremony ΡΟΗ.
+3. **The image is the decisive signal (+18 to +33 points).**
+   - With what the pictures show, accuracy jumps to 93–98% on all three events, and pairwise F1 to
+     0.89–0.96.
+   - The repeats agree (sd ≤ 1.1 points), against up to 12.6 points without pictures.
+4. **Sound helps clearly when there are no pictures, and is marginal next to them.**
+   - In the offline fallback, sound adds +15, +10 and +20 points on the three events (wedding
+     45 → 61%, 073 46 → 57%, 071 21 → 41%). It finds the ceremonies (chanting, liturgy) and the
+     party (music with a crowd).
+   - With time and camera but no pictures it adds +0.4 / +1.5 points of accuracy, and on the
+     wedding +0.06 pairwise F1.
+   - With pictures it moves accuracy by +0.9 (wedding) and −0.4 to −1.5 (071), all within the
+     run-to-run spread. On the wedding it made the result fully repeatable: 94.1% in all three runs.
+   - Hearing the sound in pass 1 too (prompt d4), rather than only in pass 2, made no consistent
+     difference.
+
+### Why sound can also hurt: an error analysis (071)
+
+Two more runs of each condition kept their misplaced clips.
+
+- **Without sound**, both runs misplaced the same 10 clips: the portraits-vs-arrival boundary
+  (6 + 6 over the two runs) and a few portraits after the baptism. Both are known to be ambiguous
+  (docs/m3).
+- **With sound**, these 10 plus 2–6 more. 5 short catechism cutaways (C4030–C4034, in the narthex)
+  went to *guest arrival* in some runs.
+  - Their sound is speech and a crowd, with no chanting: a 5–10 s cutaway rarely catches the
+    priest's chant.
+  - That weak evidence pulled the start of the catechism later.
+- **The lesson.** The sound of a short clip is weak evidence for its part. It is strong for long
+  takes (the ceremony masters are 100% "service") and for whole stretches (159/159 dancing and
+  food clips are "party"). That is where the offline fallback gains, while pass 2 already knows
+  those from the pictures.
+
+### Cost (Claude Opus 5.5)
+
+- **One full sort** (pass 1 + pass 2) costs $13.71 for the 507-clip wedding, $7.69 for baptism 073,
+  and $6.02 for 071. Pass 1 dominates.
+- **With sound in pass 1**, the wedding costs $13.86 + pass 2.
+- **A pass-2-only repeat** costs $0.25–0.70.
+- **The whole ablation study** cost about $56: $31 of pass 1 (the sound and density variants) and
+  $25 of pass-2 repeats. That covers all conditions and repeats on the three events, plus the
+  density study.
+
 
 ## 4. Frame density
 

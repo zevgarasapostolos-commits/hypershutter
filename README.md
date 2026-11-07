@@ -142,3 +142,34 @@ groupings with the user's own folders (details in [docs/m3](docs/m3-describe-str
 | Wedding + baptism, 507 clips | Opus 5.5, rules s4 | **96.5%** | **0.952** | **0.947** | 19 (18) | +$0.68 |
 
 The s2 rules were tuned on the first baptism; the second one was never used for tuning in s2. s3 added wedding hints, and s4 brought back a general rule after s3 lowered the second baptism (see [docs/m3](docs/m3-describe-structure.md)).
+
+### Ablation study (thesis): what each signal adds
+
+Matched accuracy (%), mean ± sd over 3–5 repeats; details and the other metrics in
+[docs/t2](docs/t2-sound-and-ablation.md).
+
+| Signals | Wedding + baptism (507) | Baptism 073 (267) | Baptism 071 (249) |
+|---|---|---|---|
+| offline: time gaps | 45.4 | 46.1 | 20.5 |
+| offline: time gaps + sound | 60.6 | 56.5 | 40.6 |
+| time | 73.2 ± 1.1 | 70.7 ± 6.6 | 60.5 ± 4.3 |
+| time + camera | 75.2 ± 0.5 | 73.9 ± 12.6 | 62.4 ± 2.2 |
+| time + camera + sound | 75.6 ± 0.7 | – | 63.9 ± 2.1 |
+| time + camera + image | 93.2 ± 1.1 | 97.8 ± 0.0 | 95.7 ± 0.3 |
+| all signals | 94.1 ± 0.0 | – | 94.2 ± 1.1 |
+
+The image is the decisive signal. Sound helps without the API (+10 to +20 points), and next to the
+pictures its effect is within the run-to-run spread. Frame density: one frame every 2 s (94.4%)
+beats every 4 s (92.7%) and every 1 s (93.4%) on a 136-clip subset. "–": still to run.
+
+### Ingest benchmark
+
+3.09 GB from a fake card on the internal SSD, verified on every drive:
+
+| Drives | Card read | Total written | Verify share of the time |
+|---|---|---|---|
+| 1 USB SSD | 203 MB/s | 203 MB/s | 26% |
+| + USB hard disk | 81 MB/s | 163 MB/s | 47% |
+| + second USB SSD | 49 MB/s | 148 MB/s | 46% |
+
+The slowest drive sets the pace (details in [docs/t3](docs/t3-ingest.md)).
