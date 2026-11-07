@@ -392,6 +392,7 @@ def _sfx_media(path: Path) -> Media:
 
 # ---------------- ροή ----------------
 
+CONDENSE = {"wedding": 0.30, "baptism": 0.45}     # share of each master the videographer keeps (his wedding ροή)
 BED_DB = {"ceremony_camera": -8.0, "ceremony_mic": -20.0, "montage": -2.0, "under_speech": -18.0}
 SPEECH_DB = {"camera": -3.0, "mic": 3.0, "interview": 0.0}
 
@@ -550,8 +551,9 @@ def build_flow(name: str, p: Project, st: Structure, descs: dict[str, dict]) -> 
         any_mic = False
         for m in masters:
             try:
-                ranges = transcribe.ritual_ranges(transcribe.transcribe(Path(m.media.path), "baptism" if baptism else "wedding"),
-                                                  start_after=FLOOR_SKIP)
+                segs = transcribe.transcribe(Path(m.media.path), "baptism" if baptism else "wedding")
+                ranges = transcribe.condense(segs, CONDENSE["baptism" if baptism else "wedding"], FLOOR_SKIP,
+                                             m.duration, boost=m.notable())
             except Exception as e:                       # no speech model: keep the whole master
                 warnings.append(f"{m.clip.name}: no transcript ({e}); kept whole")
                 ranges = [(FLOOR_SKIP, m.duration - 0.5)]

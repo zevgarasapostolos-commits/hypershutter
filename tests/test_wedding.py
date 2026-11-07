@@ -60,3 +60,14 @@ def test_library_resolves_swapped_drives(tmp_path, monkeypatch):
     real = tmp_path / "x.wav"
     real.write_bytes(b"x")
     assert library.resolve(str(real)) == real
+
+
+def test_condense_keeps_key_moments_within_budget():
+    S = transcribe.Segment
+    segs = [S(0, 10, "καλησπέρα σε όλους", []), S(10, 20, "Του Κυρίου δεηθώμεν", []),
+            S(20, 30, "Αρραβωνίζεται ο δούλος του Θεού", []), S(30, 40, "κάτσε λίγο εκεί", []),
+            S(40, 50, "Δόξη και τιμή στεφάνωσον αυτούς", []), S(50, 60, "Κύριε ελέησον", []),
+            S(60, 100, "μιλάμε για το τραπέζι μετά", [])]
+    kept = transcribe.condense(segs, ratio=0.2, total=100)
+    assert kept == [(20, 30), (40, 50)]                                  # the key phrases first, in time order
+    assert transcribe.condense(segs, ratio=0.2, total=100, boost=[52]) == [(20, 30), (40, 60)]

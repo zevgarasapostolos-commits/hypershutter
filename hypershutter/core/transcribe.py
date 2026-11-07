@@ -115,3 +115,40 @@ def ritual_ranges(segments: list[Segment], start_after: float = 0.0, min_len: fl
         elif runs and seg.end - seg.start <= glue and a - runs[-1][1] <= 1.0:
             runs[-1][1] = seg.end                      # a short word of instruction inside the ritual
     return [(a, b) for a, b in runs if b - a >= min_len]
+
+
+KEY = re.compile(r"αρραβων|στεφ|δοξη και τιμη|ησαια|ποτηρ|βαπτιζ|ονοματι του πατρος|εις το ονομα|ευλογ|"
+                 r"ειρηνη πασι|σοφια ορθοι|ευαγγελ|αποστολ|αμην")
+
+
+def condense(segments: list[Segment], ratio: float, start_after: float = 0.0, total: float | None = None,
+             min_piece: float = 3.0, join_gap: float = 1.5, boost: list[float] = ()) -> list[tuple[float, float]]:
+    """The ceremony's key moments down to about `ratio` of the master, as the videographer condenses a
+    wedding service (~30 %): ritual sentences ranked by importance (betrothal, crowning, the Name of the
+    Trinity, blessings…), kept in time order and joined when they nearly touch."""
+    total = total or (segments[-1].end if segments else 0.0)
+    budget = ratio * max(0.0, total - start_after)
+    units = []
+    for k, s in enumerate(segments):
+        if s.end <= start_after:
+            continue
+        text = _norm(s.text)
+        score = 3.0 if KEY.search(text) else 1.5 if LITURGY.search(text) else 0.0
+        if any(t - 5 <= s.end and s.start <= t + 10 for t in boost):
+            score += 2.0                                  # what the pictures show as a key moment
+        if score:
+            units.append((score, k, max(s.start, start_after), s.end))
+    chosen, used = [], 0.0
+    for score, k, a, b in sorted(units, key=lambda u: (-u[0], u[2])):
+        if used >= budget:
+            break
+        chosen.append((a, b))
+        used += b - a
+    chosen.sort()
+    out: list[list[float]] = []
+    for a, b in chosen:
+        if out and a - out[-1][1] <= join_gap:
+            out[-1][1] = max(out[-1][1], b)
+        else:
+            out.append([a, b])
+    return [(a, b) for a, b in out if b - a >= min_piece]
