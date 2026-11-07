@@ -24,7 +24,8 @@ from hypershutter.core.structure import Structure
 
 EVENT_TYPES = ("baptism", "wedding", "event")
 SCRUB_FRAMES = 16                      # frames per clip sent to the Review grid for hover scrubbing
-STAGE = {"probe": "scan", "frames": "frames", "scene": "frames", "describe": "describe", "structure": "structure",
+STAGE = {"probe": "scan", "frames": "frames", "scene": "frames", "audio": "audio", "speech": "audio",
+         "describe": "describe", "structure": "structure",
          "backup": "backup", "move": "move", "undo": "undo"}
 
 
@@ -37,6 +38,7 @@ class Bridge:
         self._job: dict | None = None
         self._p: Project | None = None
         self._by_clip: dict[str, list[frames.Frame]] | None = None
+        self._audio: dict[str, dict] | None = None
         self._st: Structure | None = None
 
     # ---------- events and jobs ----------
@@ -100,7 +102,7 @@ class Bridge:
         if not root.is_dir():
             raise ValueError("not a folder")
         p = Project.load(root)
-        self._p, self._by_clip, self._st = p, None, None
+        self._p, self._by_clip, self._audio, self._st = p, None, None, None
         return {"root": str(root), "name": root.name, "known": p is not None,
                 "event_type": p.event_type if p else "baptism", "event_name": p.event_name if p else "",
                 "schedule": p.schedule if p else "", "has_structure": bool(p and review.load(p))}
@@ -133,6 +135,9 @@ class Bridge:
             self._progress("frames", 0, 1)
             self._by_clip = pipeline.prepare(p, self._options(), self._progress)
             self._progress("frames", 1, 1)
+            self._progress("audio", 0, 1)
+            self._audio = pipeline.prepare_audio(p, self._options(), list(self._by_clip), self._progress)
+            self._progress("audio", 1, 1)
             return self.scan_summary()
 
         return self._start("scan", work)
@@ -155,7 +160,7 @@ class Bridge:
         est = []
         if self._by_clip is not None:
             for model, info in cost.MODELS.items():
-                e = pipeline.estimate(p, self._by_clip, model)
+                e = pipeline.estimate(p, self._by_clip, model, audio=self._audio)
                 est.append({"model": model, "label": info["label"], "cost": round(e.cost_usd, 2),
                             "minutes": max(1, round(e.minutes)), "clips": e.clips, "cached": e.cached,
                             "sheets": e.sheets, "frames": e.frames})
@@ -191,7 +196,7 @@ class Bridge:
         opts = self._options(model, offline)
 
         def work() -> dict:
-            res = pipeline.run(p, opts, self._by_clip, self._progress)
+            res = pipeline.run(p, opts, self._by_clip, self._progress, audio=self._audio)
             review.reset(p)                     # a new proposal replaces earlier review edits
             self._st = None
             return {"folders": len(res.structure.categories), "needs_review": len(res.structure.needs_review),

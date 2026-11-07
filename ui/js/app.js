@@ -6,7 +6,7 @@
   const $$ = (sel, root = document) => Array.from(root.querySelectorAll(sel));
   const view = $("#view");
 
-  const STAGES = ["scan", "sync", "frames", "describe", "structure"];
+  const STAGES = ["scan", "sync", "frames", "audio", "describe", "structure"];
   const STAR_SVG =
     '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3.5l2.6 5.3 5.9.9-4.3 4.1 1 5.8L12 16.9l-5.2 2.7 1-5.8-4.3-4.1 5.9-.9z"/></svg>';
 
@@ -723,7 +723,7 @@
     } else if (ev.type === "job_done" && ev.name === "undo") {
       afterApplyJob(t("apply.undone", { n: ev.result.back }) + (ev.result.problems.length ? " " + ev.result.problems.join("; ") : ""));
     } else if (ev.type === "job_done" && ev.name === "scan") {
-      ["scan", "sync", "frames"].forEach((s) => (S.stages[s] = { status: "done" }));
+      ["scan", "sync", "frames", "audio"].forEach((s) => (S.stages[s] = { status: "done" }));
       S.scan = ev.result;
       S.project.has_structure = ev.result.has_structure;
       if (S.view === "analyze") renderAnalyze();

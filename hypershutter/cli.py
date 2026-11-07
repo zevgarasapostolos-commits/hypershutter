@@ -163,7 +163,39 @@ def _options(args) -> "pipeline.AnalyzeOptions":
     from hypershutter.core import pipeline
     return pipeline.AnalyzeOptions(event_type=args.type, model=args.model, effort_describe=args.effort_describe,
                                    effort_structure=args.effort_structure, interval=args.interval,
-                                   offline=getattr(args, "offline", False))
+                                   offline=getattr(args, "offline", False),
+                                   signals=tuple(s.strip() for s in args.signals.split(",") if s.strip()),
+                                   speech=not args.no_speech, elsewhere=tuple(args.elsewhere))
+
+
+def structure_signals() -> tuple[str, ...]:
+    from hypershutter.core.structure import SIGNALS
+    return SIGNALS
+
+
+def cmd_ablation(args) -> int:
+    from hypershutter.core import ablation
+    folder = Path(args.folder).expanduser()
+    p = _synced(folder)
+    base = _options(args)
+    log = lambda s: print(s, flush=True)
+    stem = p.name.strip().replace(" ", "_")
+    if args.density:
+        r = ablation.density_study(p, base, tuple(float(x) for x in args.density.split(",")), reps=args.reps,
+                                   size=args.subset, log=log)
+        print(f"saved: {ablation.save(r, stem + '-density')}")
+        for iv, x in r["intervals"].items():
+            print(f"\n1 frame / {iv} s ({x['frames']} frames):\n" + ablation.table_md(x))
+        return 0
+    names = [n.strip() for n in args.conditions.split(";")] if args.conditions else list(ablation.CONDITIONS)
+    unknown = [n for n in names if n not in ablation.CONDITIONS]
+    if unknown:
+        print(f"unknown conditions: {unknown}; known: {list(ablation.CONDITIONS)}")
+        return 2
+    r = ablation.run_conditions(p, base, names, reps=args.reps, workers=args.workers, log=log)
+    print(f"saved: {ablation.save(r, stem)}\n")
+    print(ablation.table_md(r))
+    return 0
 
 
 def _synced(folder: Path, workers: int = 6) -> Project:
@@ -385,8 +417,13 @@ def main(argv: list[str] | None = None) -> int:
         sp.add_argument("--effort-describe", default="low", choices=["low", "medium", "high"])
         sp.add_argument("--effort-structure", default="high", choices=["low", "medium", "high", "xhigh", "max"])
         sp.add_argument("--interval", type=float, default=2.0)
-        sp.add_argument("--offline", action="store_true", help="no API: time-gap segmentation")
+        sp.add_argument("--offline", action="store_true", help="no API: time-gap (+ sound) segmentation")
         sp.add_argument("--yes", action="store_true", help="skip the cost confirmation")
+        sp.add_argument("--signals", default=",".join(structure_signals()),
+                        help="what the sorting may use, comma separated: time,camera,image,audio")
+        sp.add_argument("--no-speech", action="store_true", help="skip Whisper cue words")
+        sp.add_argument("--elsewhere", action="append", default=[], metavar="DIR",
+                        help="a folder that holds clips moved off the event folder (read-only)")
 
     sp = sub.add_parser("structure", help="describe every clip and build the event's folder structure (dry run)")
     analysis_args(sp)
@@ -396,6 +433,15 @@ def main(argv: list[str] | None = None) -> int:
     analysis_args(sp)
     sp.add_argument("--index", help="use this shot index as ground truth instead of the folders")
     sp.set_defaults(func=cmd_eval)
+
+    sp = sub.add_parser("ablation", help="ablation study: sorting accuracy per signal (read-only); JSON in reports/ablation/")
+    analysis_args(sp)
+    sp.add_argument("--reps", type=int, default=3, help="repeats per condition (pass 2 is not deterministic)")
+    sp.add_argument("--conditions", help="';'-separated condition names (default: all)")
+    sp.add_argument("--workers", type=int, default=4)
+    sp.add_argument("--density", help="frame-density comparison instead, e.g. 4,2,1 (seconds per frame)")
+    sp.add_argument("--subset", type=int, default=120, help="clips in the density subset")
+    sp.set_defaults(func=cmd_ablation)
 
     sp = sub.add_parser("key", help="store the Anthropic API key in the macOS Keychain")
     sp.add_argument("action", choices=["set", "status", "delete"], nargs="?", default="status")

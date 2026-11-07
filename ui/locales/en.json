@@ -39,6 +39,7 @@
   "stage.scan": "Scan files",
   "stage.sync": "Sync camera clocks",
   "stage.frames": "Frames & contact sheets",
+  "stage.audio": "Sound analysis (local)",
   "stage.describe": "Describe every clip (AI)",
   "stage.structure": "Build the folders (AI)",
   "status.wait": "Waiting",

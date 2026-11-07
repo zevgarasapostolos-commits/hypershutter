@@ -1,7 +1,8 @@
 """Pass 1: describe every clip from its contact sheets (Claude vision, one call per clip).
 
-The model sees the sheets plus capture time, duration and camera. It never sees file names
-or folder paths: in an organized project the folder name is the answer.
+The model sees the sheets plus capture time, duration and camera, and (prompt d4) what the local
+audio analysis heard over the clip. It never sees file names or folder paths: in an organized
+project the folder name is the answer.
 """
 
 from __future__ import annotations
@@ -22,7 +23,8 @@ from hypershutter.core.frames import Frame, FrameSettings
 from hypershutter.core.media import Clip, fmt_duration
 from hypershutter.core.project import Project
 
-PROMPT_VERSION = "d3"
+PROMPT_VERSION = "d3"                # pictures, time, camera
+PROMPT_VERSION_AUDIO = "d4"          # the same plus the sound of the clip
 MAX_SHEETS = 20                      # per request; longer clips are subsampled evenly
 FALLBACK_BETA = "server-side-fallback-2026-07-01"
 
@@ -92,6 +94,20 @@ groom, musicians, …). Never guess names.
 
 Answer only with the JSON object."""
 
+AUDIO_HINTS = """
+
+You also get what could be heard in the clip, from a local sound classifier (speech, chanting, singing, \
+music, applause, crowd, bells, water, vehicles …, and the room acoustics) and a local speech recognizer \
+(cue words only: liturgy, the ritual phrases of the ceremony, wishes, toasts). Use the sound together \
+with the pictures: chanting and liturgy mean a service is going on, a ritual cue tells which moment \
+(rings, crowning, isaiah, common cup, renunciation, creed, immersion), wishes or toasts mean people speak \
+to the camera or raise a glass, music with crowd and applause mean a reception, an entrance or dancing. \
+Report in `sound` what the sound adds. The pictures decide when the two disagree."""
+
+SCHEMA_AUDIO = {**SCHEMA, "properties": {**SCHEMA["properties"], "sound": {
+    "type": "string", "description": "English, a few words: what the sound tells about the clip"}},
+    "required": SCHEMA["required"] + ["sound"]}
+
 
 @dataclass
 class Usage:
@@ -137,7 +153,7 @@ def camera_label(p: Project, clip: Clip) -> str:
     return "camera"
 
 
-def clip_text(p: Project, clip: Clip, event_type: str) -> str:
+def clip_text(p: Project, clip: Clip, event_type: str, audio: str = "") -> str:
     start = p.corrected(clip)
     end = start + timedelta(seconds=clip.duration) if start else None
     pr = clip.probe
@@ -149,6 +165,8 @@ def clip_text(p: Project, clip: Clip, event_type: str) -> str:
     ]
     if start:
         lines.append(f"Time of day: {start:%H:%M:%S}–{end:%H:%M:%S}.")
+    if audio:
+        lines.append(audio)
     return "\n".join(lines)
 
 
@@ -159,11 +177,13 @@ def _subsample(frames: list[Frame], max_frames: int) -> list[Frame]:
     return [frames[int(k * step)] for k in range(max_frames)]
 
 
-def _cache_file(p: Project, clip: Clip, model: str, fs: FrameSettings) -> Path:
+def _cache_file(p: Project, clip: Clip, model: str, fs: FrameSettings, audio: str = "") -> Path:
     """Keyed by the file itself (name, size, mtime), not by the project: a copy of the same clip
-    or a re-mounted drive is not paid for twice. Older per-project caches are moved over."""
+    or a re-mounted drive is not paid for twice. Older per-project caches are moved over. With
+    sound the key also holds the audio text, so a new analysis is a new description."""
     key = store.file_key(clip.name, clip.size, clip.mtime)
-    tag = hashlib.sha1(f"{key}|{model}|{fs.key()}|{PROMPT_VERSION}".encode()).hexdigest()[:24]
+    version = PROMPT_VERSION if not audio else f"{PROMPT_VERSION_AUDIO}|{hashlib.sha1(audio.encode()).hexdigest()[:12]}"
+    tag = hashlib.sha1(f"{key}|{model}|{fs.key()}|{version}".encode()).hexdigest()[:24]
     path = config.cache_dir("describe") / f"{tag}.json"
     legacy = config.cache_dir("describe") / store.project_id(Path(p.root)) / f"{tag}.json"
     if not path.exists() and legacy.exists():
@@ -171,15 +191,15 @@ def _cache_file(p: Project, clip: Clip, model: str, fs: FrameSettings) -> Path:
     return path
 
 
-def cached(p: Project, clip: Clip, model: str, fs: FrameSettings) -> dict | None:
+def cached(p: Project, clip: Clip, model: str, fs: FrameSettings, audio: str = "") -> dict | None:
     """A clip's description if pass 1 already ran with these settings (never calls the API)."""
-    cf = _cache_file(p, clip, model, fs)
+    cf = _cache_file(p, clip, model, fs, audio)
     return json.loads(cf.read_text()) if cf.exists() else None
 
 
 def describe_clip(client, p: Project, clip: Clip, frames: list[Frame], fs: FrameSettings, model: str,
-                  effort: str, event_type: str, usage: Usage) -> dict:
-    cf = _cache_file(p, clip, model, fs)
+                  effort: str, event_type: str, usage: Usage, audio: str = "") -> dict:
+    cf = _cache_file(p, clip, model, fs, audio)
     if cf.exists():
         return json.loads(cf.read_text())
     layout = sheets.SheetLayout()
@@ -191,13 +211,13 @@ def describe_clip(client, p: Project, clip: Clip, frames: list[Frame], fs: Frame
         content.append({"type": "text", "text": f"Sheet {i + 1} of {len(paths)}:"})
         content.append({"type": "image", "source": {"type": "base64", "media_type": "image/jpeg",
                                                     "data": base64.standard_b64encode(sp.read_bytes()).decode()}})
-    content.append({"type": "text", "text": clip_text(p, clip, event_type) + "\n\nDescribe this clip."})
+    content.append({"type": "text", "text": clip_text(p, clip, event_type, audio) + "\n\nDescribe this clip."})
     t0 = time.time()
     resp = client.beta.messages.create(
         model=model, max_tokens=8000, betas=[FALLBACK_BETA], fallbacks="default",
-        system=[{"type": "text", "text": SYSTEM, "cache_control": {"type": "ephemeral"}}],
+        system=[{"type": "text", "text": SYSTEM + (AUDIO_HINTS if audio else ""), "cache_control": {"type": "ephemeral"}}],
         messages=[{"role": "user", "content": content}],
-        output_config={"effort": effort, "format": {"type": "json_schema", "schema": SCHEMA}},
+        output_config={"effort": effort, "format": {"type": "json_schema", "schema": SCHEMA_AUDIO if audio else SCHEMA}},
     )
     usage.add(resp.usage, resp.model or model)
     usage.seconds += time.time() - t0
@@ -214,7 +234,9 @@ def describe_clip(client, p: Project, clip: Clip, frames: list[Frame], fs: Frame
 
 def describe_all(p: Project, frames_by_clip: dict[str, list[Frame]], fs: FrameSettings, model: str = cost.DEFAULT_MODEL,
                  effort: str = "low", event_type: str = "baptism", workers: int = 8,
-                 progress: Callable[[str, int, int], None] | None = None) -> tuple[dict[str, dict], Usage]:
+                 progress: Callable[[str, int, int], None] | None = None,
+                 audio: dict[str, str] | None = None) -> tuple[dict[str, dict], Usage]:
+    """Pass 1 for every clip; `audio` (clip id -> sound text) switches to the d4 prompt."""
     client = credentials.client()
     usage = Usage()
     ids = sorted(frames_by_clip, key=lambda c: (p.corrected(p.clips[c]) or 0, c))
@@ -222,7 +244,8 @@ def describe_all(p: Project, frames_by_clip: dict[str, list[Frame]], fs: FrameSe
     done = 0
 
     def work(cid: str):
-        return cid, describe_clip(client, p, p.clips[cid], frames_by_clip[cid], fs, model, effort, event_type, usage)
+        return cid, describe_clip(client, p, p.clips[cid], frames_by_clip[cid], fs, model, effort, event_type, usage,
+                                  (audio or {}).get(cid, ""))
 
     with ThreadPoolExecutor(max_workers=workers) as ex:
         for cid, out in ex.map(work, ids):
