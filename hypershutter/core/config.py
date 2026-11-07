@@ -7,6 +7,7 @@ never inside an event folder (event folders are read-only until Apply).
 from __future__ import annotations
 
 import os
+import sys
 import re
 import shutil
 import subprocess
@@ -34,7 +35,7 @@ def app_support_dir() -> Path:
 def reports_dir(*parts: str) -> Path:
     """reports/ in the repository while developing; Application Support inside the packaged app."""
     base = REPO_ROOT / "reports"
-    if not os.access(REPO_ROOT, os.W_OK) or not (REPO_ROOT / "hypershutter").is_dir():
+    if getattr(sys, "frozen", False) or not os.access(REPO_ROOT, os.W_OK):
         base = app_support_dir() / "reports"
     d = base.joinpath(*parts)
     d.mkdir(parents=True, exist_ok=True)
