@@ -9,6 +9,7 @@ internet the offline fallback segments the timeline by time gaps.
 from __future__ import annotations
 
 import json
+import re
 import time
 from dataclasses import asdict, dataclass, field
 from datetime import datetime, timedelta
@@ -324,3 +325,28 @@ def offline_structure(p: Project, ids: list[str], preset: dict, gap_minutes: flo
     raw = {"parts": list(parts.values()), "assignments": assignments, "notes": "offline: time-gap segmentation",
            "_order": [c.id for c in clips]}
     return finalize(p, raw, {}, preset, source="offline")
+
+
+FOLDER = re.compile(r"^(\d{2})([a-z]?) (.+)$")
+
+
+def from_folders(p: Project) -> Structure:
+    """The videographer's own organization as a Structure, for an event he has already sorted."""
+    groups: dict[str, list[str]] = {}
+    for c in p.clips.values():
+        if c.kind == "video" and "/" in c.rel and FOLDER.match(c.rel.split("/", 1)[0]):
+            groups.setdefault(c.rel.split("/", 1)[0], []).append(c.id)
+    cats: list[Category] = []
+    for top in sorted(groups):
+        num, sub, label = FOLDER.match(top).groups()
+        up = label.upper()
+        kind = (FLOW if up.endswith("ΡΟΗ") else BROLL if "B-ROLL" in up else DRONE if "DRONE" in up
+                else UNUSABLE if num == "99" else NORMAL)
+        ids = [c.id for c in ordered_clips(p, groups[top])]
+        cats.append(Category(top, int(num), sub, label, top, "", kind, ids))
+    flows = {_ceremony_name({"label_el": c.label_el.split(" — ")[0]}): c.key for c in cats if c.kind == FLOW}
+    for c in cats:
+        if c.kind == BROLL:
+            c.parent = flows.get(_ceremony_name({"label_el": c.label_el.split(" — ")[0]}), "")
+    assign = {cid: c.key for c in cats for cid in c.clips}
+    return Structure(cats, assign, {cid: 1.0 for cid in assign}, [], source="folders")

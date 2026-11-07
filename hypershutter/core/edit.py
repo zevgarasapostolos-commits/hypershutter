@@ -142,12 +142,13 @@ def shots(p: Project, st: Structure, descs: dict[str, dict]) -> list[Shot]:
 # ---------------- B-roll lists (docs/workflow-organizing.md §5.4–5.5) ----------------
 
 def ceremony_groups(st: Structure) -> list[tuple[str, list[Category]]]:
-    """Ceremonies in order: (name, [ΡΟΗ category, B-ROLL category])."""
-    out: dict[int, list[Category]] = {}
+    """Ceremonies in order: (name, [ΡΟΗ category, B-ROLL category]), paired by the ceremony's name
+    (a wedding's baptism may number its ΡΟΗ and B-ROLL 10 and 11 instead of 10 / 10a)."""
+    out: dict[str, list[Category]] = {}
     for c in st.categories:
         if c.kind in (FLOW, BROLL):
-            out.setdefault(c.number, []).append(c)
-    return [(cats[0].label_el.split(" — ")[0], cats) for _, cats in sorted(out.items())]
+            out.setdefault(c.label_el.split(" — ")[0].strip().upper(), []).append(c)
+    return [(name, cats) for name, cats in sorted(out.items(), key=lambda kv: min(c.number for c in kv[1]))]
 
 
 def broll_list(p: Project, st: Structure, descs: dict[str, dict], keys: list[str]) -> dict:

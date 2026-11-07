@@ -321,7 +321,14 @@ def cmd_undo(args) -> int:
 def cmd_premiere(args) -> int:
     from hypershutter.core import premiere
     folder = Path(args.folder).expanduser()
-    p, st = _reviewed(folder)
+    if args.from_folders:
+        from hypershutter.core import structure
+        p = Project.load(folder)
+        st = structure.from_folders(p) if p else None
+        if p and args.type:
+            p.event_type = args.type
+    else:
+        p, st = _reviewed(folder)
     if st is None:
         return 1
     which = (args.only,) if args.only else ("highlights", "flow")
@@ -452,6 +459,8 @@ def main(argv: list[str] | None = None) -> int:
     sp = sub.add_parser("premiere", help="highlights + ροή as Premiere XML, with low-res previews")
     sp.add_argument("folder"); sp.add_argument("--song", help="song for the highlights (default: the event's music/)")
     sp.add_argument("--no-preview", action="store_true"); sp.add_argument("--only", choices=["highlights", "flow"])
+    sp.add_argument("--from-folders", action="store_true", help="use the event's own numbered folders (already organized)")
+    sp.add_argument("--type", choices=["baptism", "wedding", "event"], help="event type (with --from-folders)")
     sp.set_defaults(func=cmd_premiere)
 
     sp = sub.add_parser("broll", help="B-roll lists per ceremony (or one folder), strongest first")

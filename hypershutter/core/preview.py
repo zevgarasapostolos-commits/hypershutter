@@ -57,6 +57,8 @@ def _item_filter(k: int, it: Item, skip: float = 0.0) -> str:
     ch = f"c{min(it.channel, max(1, it.media.audio_channels)) - 1}"
     dur = it.frames / FPS - skip
     f = f"[{k}:a]pan=mono|c0={ch},aresample={SR_OUT},atrim=0:{dur:.4f},asetpts=N/SR/TB"
+    if abs(it.gain_db) > 0.05:
+        f += f",volume={it.gain_db:.1f}dB"
     if it.fade_in and skip <= 0:
         f += f",afade=t=in:d={it.fade_in / FPS:.3f}"
     if it.fade_out:

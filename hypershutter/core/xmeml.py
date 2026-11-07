@@ -47,6 +47,7 @@ class Item:
     fade_in: int = 0           # audio: Constant Power frames at the start
     fade_out: int = 0
     enabled: bool = True
+    gain_db: float = 0.0       # audio: clip level (Audio Levels), 0 = unchanged
 
     @property
     def frames(self) -> int:
@@ -149,6 +150,13 @@ class _Writer:
                      "<effecttype>motion</effecttype><mediatype>video</mediatype>"
                      '<parameter authoringApp="PremierePro"><parameterid>scale</parameterid><name>Scale</name>'
                      f"<valuemin>0</valuemin><valuemax>1000</valuemax><value>{scale:.1f}</value></parameter></effect></filter>")
+        if audio and abs(it.gain_db) > 0.05:
+            gain = 10 ** (it.gain_db / 20)
+            filt += ("<filter><effect><name>Audio Levels</name><effectid>audiolevels</effectid>"
+                     "<effectcategory>audiolevels</effectcategory><effecttype>audiolevels</effecttype>"
+                     "<mediatype>audio</mediatype><parameter authoringApp=\"PremierePro\"><parameterid>level</parameterid>"
+                     f"<name>Level</name><valuemin>0</valuemin><valuemax>3.98109</valuemax><value>{gain:.5f}</value>"
+                     "</parameter></effect></filter>")
         source = (f"<sourcetrack><mediatype>audio</mediatype><trackindex>{it.channel}</trackindex></sourcetrack>"
                   if audio else "")
         return (f'<clipitem id="{track_id}-{self.n}"><name>{escape(m.name)}</name>'
