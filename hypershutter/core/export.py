@@ -70,6 +70,13 @@ def plan(p: Project, st: Structure | None, preset_name: str, dest: Path | None =
         for c in (st.categories if st else []):
             if c.key in keys or f"{c.number:02d}{c.sub}" in keys or c.folder in keys:
                 wanted |= set(c.clips)
+        if st is None:                               # not analysed here: the folders as they are on disk
+            for c in p.clips.values():
+                top = c.rel.split("/", 1)[0]
+                if top in keys or top.split(" ", 1)[0] in keys:
+                    wanted.add(c.id)
+        if not wanted:
+            return []
     chosen = [c for c in p.clips.values() if c.kind == "video" and (not wanted or c.id in wanted)]
     chosen.sort(key=lambda c: (folder_of.get(c.id, str(Path(c.rel).parent)), p.corrected(c) or 0, c.id))
     items, taken, counter = [], set(), {}
