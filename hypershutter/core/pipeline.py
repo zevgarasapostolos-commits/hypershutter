@@ -52,10 +52,12 @@ def structure_path(p: Project) -> Path:
     return config.cache_dir("structure", store.project_id(Path(p.root))) / "latest.json"
 
 
-def prepare(p: Project, opts: AnalyzeOptions, progress: Progress | None = None) -> dict[str, list[frames.Frame]]:
-    """Frames (cached after the first run) for every readable video clip."""
+def prepare(p: Project, opts: AnalyzeOptions, progress: Progress | None = None,
+            ids: list[str] | None = None) -> dict[str, list[frames.Frame]]:
+    """Frames (cached after the first run) for every readable video clip, or only for `ids`."""
     fs = frames.FrameSettings(interval=opts.interval)
-    video = [c for c in p.clips.values() if c.kind == "video"]
+    wanted = set(ids) if ids is not None else None
+    video = [c for c in p.clips.values() if c.kind == "video" and (wanted is None or c.id in wanted)]
     return frames.extract_all(Path(p.root), video, fs, progress=progress)
 
 

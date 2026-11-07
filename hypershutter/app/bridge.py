@@ -93,7 +93,7 @@ class Bridge:
         return {"version": __version__, "event_types": list(EVENT_TYPES),
                 "models": [{"id": k, "label": v["label"]} for k, v in cost.MODELS.items()],
                 "default_model": s["model"], "ffmpeg": bool(config.find_tool("ffmpeg")),
-                "onboarded": s["onboarded"], "key": bool(credentials.get_api_key()), "language": s["language"]}
+                "onboarded": s["onboarded"], "language": s["language"]}       # the Keychain is read only where the key is needed
 
     def recent(self) -> list[dict]:
         out = []

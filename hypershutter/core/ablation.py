@@ -64,9 +64,7 @@ def run_conditions(p: Project, base: pipeline.AnalyzeOptions, conditions: list[s
                    log: Callable[[str], None] = print) -> dict:
     """Every condition `reps` times (offline ones once: they are deterministic)."""
     truth = truth_of(p)
-    by_clip = pipeline.prepare(p, base)
-    if ids is not None:
-        by_clip = {cid: f for cid, f in by_clip.items() if cid in ids}
+    by_clip = pipeline.prepare(p, base, ids=ids)
     by_clip = {cid: f for cid, f in by_clip.items() if cid in truth}
     needs_sound = any("audio" in CONDITIONS[n]["signals"] for n in conditions)
     audio = pipeline.prepare_audio(p, base, list(by_clip)) if needs_sound else {}
@@ -137,6 +135,7 @@ def density_study(p: Project, base: pipeline.AnalyzeOptions, intervals: tuple[fl
         log(f"  1 frame / {iv:g} s: {n_frames} frames ({time.time() - t0:.0f} s to extract)")
         r = run_conditions(p, opts, ["time + camera + image"], reps=reps, ids=ids, log=log)
         r["frames"] = n_frames
+        r["extract_s"] = round(time.time() - t0)
         out["intervals"][f"{iv:g}"] = r
     return out
 

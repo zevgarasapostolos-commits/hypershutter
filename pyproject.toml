@@ -4,8 +4,8 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "hypershutter"
-version = "0.0.1"
-description = "Organizes wedding / baptism / event footage into the videographer's own category structure."
+version = "0.1.0"
+description = "Ingest, archiving and automatic sorting of wedding videography footage."
 requires-python = ">=3.12"
 
 [project.scripts]

@@ -11,16 +11,21 @@ numbered Greeklish folders, with an undo journal, a shot index and per-folder co
 also monitors drive space and does batch exports with presets. Weddings are the main target;
 baptisms and other events work through presets.
 
-> Status: sorting, review, apply / undo and evaluation work (CLI and window). Remaining: audio
-> analysis in the sorting and the ablation study (T2), ingest (T3), proxies and drive monitoring
-> (T4), multi-drive organize (T5), batch export (T6), the remaining screens (T7), design (T8) and
-> packaging (T9). The earlier editing prototype (B-roll, Premiere XML) lives on the `edit-prep`
-> branch and is out of the thesis scope.
+> Status: all five parts of the thesis work, in the CLI and in the app (HyperShutter.app,
+> Apple silicon): verified multi-drive ingest, background proxies, sorting from time + camera +
+> image + sound, review with apply / undo on every drive copy, drive monitoring and batch
+> export, plus the Accuracy Lab and the ablation study. Waiting for the real logo and icon
+> (a placeholder is in assets/branding/). The earlier editing prototype (B-roll, Premiere XML)
+> lives on the `edit-prep` branch and is out of the thesis scope.
 
 ## Usage
 
 ```bash
-hypershutter app                                # the window: Projects → Scan & Analyze → Review
+hypershutter app                                # the window (Projects, Ingest, Analyze, Review, Export, Drives, Lab …)
+hypershutter ingest --list                      # cards found under /Volumes
+hypershutter ingest /Volumes/<card> --project "074 Γ15-11-2026" --label "cam apos" --dest /Volumes/A --dest /Volumes/B
+hypershutter proxies "/Volumes/A/<event>/"      # ProRes Proxy for every clip (background queue)
+hypershutter drives                             # space, events and proxies per drive, warnings
 hypershutter app --browser                      # same UI in a normal browser (development)
 hypershutter scan "/Volumes/T7/<event>/"        # clips, sidecars, devices, duplicate/corrupt checks
 hypershutter sync "/Volumes/T7/<event>/"        # clock offsets from shared audio
@@ -33,7 +38,13 @@ hypershutter eval "/Volumes/T7/<organized event>/"   # accuracy against the user
 hypershutter apply "/Volumes/T7/<event>/"       # dry run: what would move where
 hypershutter apply "/Volumes/T7/<event>/" --apply [--backup /Volumes/Backup]   # move (journaled)
 hypershutter undo "/Volumes/T7/<event>/"        # every file back to its exact original path
+hypershutter export "/Volumes/T7/<event>/" --preset h264_1080_review --folders 05,08a
+hypershutter ablation "/Volumes/T7/<organized event>/" --type wedding   # accuracy per signal (thesis)
 ```
+
+`apply` and `undo` act on every copy of the event that ingest made (or `--mirror DIR`), after
+checking that each copy matches the main one; `--signals time,camera,image,audio` chooses what the
+sorting may use, and `--offline` sorts without the API (time gaps + sound).
 
 The AI model defaults to Claude Opus 5.5 (`--model claude-sonnet-5-5` or `claude-haiku-5-5` are
 cheaper). A cost and time estimate is shown before any API call.
@@ -50,6 +61,16 @@ wrote (e.g. "camera A is +14:00"). Each device gets an anchor/auto/manual/unreso
 - Sidecars (`.XML`, `.SRT`, `.LRF`, `.THM`) always travel with their clip.
 - File names and folder paths are never sent to the AI model.
 - Caches live in `~/Library/Application Support/HyperShutter/`, never inside event folders.
+
+## Build the app
+
+```bash
+scripts/build_app.sh            # dist/HyperShutter.app (PyInstaller, Apple silicon, ~510 MB)
+```
+
+FFmpeg is not bundled (`brew install ffmpeg`; the onboarding checks for it). The Whisper and
+CED-mini models are downloaded on first use. On the first launch macOS asks to let the app read
+its API key from the Keychain.
 
 ## Install (development)
 
@@ -85,7 +106,7 @@ python3.13 -m venv .venv
 
 | Path | Contents |
 |---|---|
-| `hypershutter/core/` | pipeline: scan, checks, sync, frames, sheets, describe, structure, review, execute (apply/undo/backup), index, audio, transcribe, evaluate, pipeline |
+| `hypershutter/core/` | cards, ingest, manifest, jobs, proxies, drives, export; scan, checks, sync, frames, sheets, audio, audio_tags, transcribe, describe, structure, pipeline, review, execute (apply/undo on every copy), index, evaluate, ablation, settings |
 | `hypershutter/app/` | `main.py` (pywebview window), `server.py` (local server on 127.0.0.1 with a per-run token), `bridge.py` (the API every screen calls) |
 | `ui/` | plain HTML/CSS/JS: `css/tokens.css`, `css/app.css`, `js/`, `locales/en.json`, `locales/el.json` |
 | `presets/` | category **hints** per event type (never fixed lists) |
@@ -101,6 +122,9 @@ python3.13 -m venv .venv
 - [docs/m2-frames.md](docs/m2-frames.md): frame extraction benchmark, contact sheet sizing, cost estimate
 - [docs/m3-describe-structure.md](docs/m3-describe-structure.md): the two AI passes, validation rules, evaluation
 - [docs/m5-apply.md](docs/m5-apply.md): plan, write-ahead journal, move, undo, backup, index, contact sheets
+- [docs/t2-sound-and-ablation.md](docs/t2-sound-and-ablation.md): sound analysis and the ablation study (thesis results)
+- [docs/t3-ingest.md](docs/t3-ingest.md): verified multi-drive ingest, manifests, MHL, benchmark
+- [docs/t4-t6-proxies-drives-organize-export.md](docs/t4-t6-proxies-drives-organize-export.md): proxies, drives, multi-drive organize, export
 
 ## Accuracy
 
