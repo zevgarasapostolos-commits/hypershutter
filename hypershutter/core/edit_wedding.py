@@ -14,7 +14,7 @@ from __future__ import annotations
 import math
 import re
 from dataclasses import dataclass, field
-from datetime import datetime
+from datetime import datetime, timedelta
 from pathlib import Path
 
 from hypershutter.core import library, music
@@ -62,6 +62,7 @@ class Slot:
     shot: Shot | None = None
     src_in: float = 0.0
     live: str = ""        # "" | "film" | "live"
+    speed: float = 1.0
 
 
 @dataclass
@@ -159,7 +160,7 @@ def build(p: Project, st: Structure, descs: dict[str, dict]) -> WeddingHighlight
                 if len(picks) >= 9:
                     break
             for ln, s in zip(_lengths(t, length, shot_len, beat, phase), picks):
-                slots.append(Slot(part, t, t + ln, s, s.window(ln)))
+                slots.append(_slot(part, t, ln, s, None, "", allshots, used))
                 used.add(s.id)
                 t += ln
             continue
@@ -189,38 +190,43 @@ def build(p: Project, st: Structure, descs: dict[str, dict]) -> WeddingHighlight
                 t += ln
         grid = _lengths(t, length, shot_len, beat, phase)
         n_live = FILM_PARTS.get(part, 0) + LIVE_PARTS.get(part, 0)
-        regular = len(grid) - n_live
+        moments = _moments(pool, part, n_live, used)          # first, so their clips are not picked again
+        regular = len(grid) - len(moments)
         if part == "prep":
             groom = [s for s in pool if "ΓΑΜΠΡ" in s.cat.label_el]
             bride = [s for s in pool if "ΝΥΦ" in s.cat.label_el]
             details = [s for s in pool if s not in groom and s not in bride]
-            chosen = _pick(details, max(2, regular // 6), used)
-            chosen += _intercut([_pick(groom, regular // 2, used), _pick(bride, regular - regular // 2 - len(chosen), used)])
-        elif part == "party":
-            chosen = _party(pool, regular, used)
+            head = _pick(details, max(2, regular // 6), used)
+            rest = _intercut([_pick(groom, regular // 2, used), _pick(bride, regular - regular // 2 - len(head), used)])
+            entries = [(s, None, "") for s in head] + _interleave_entries([(s, None, "") for s in rest],
+                                                                          [(m, tt, k) for m, tt, k in moments])
         else:
-            chosen = _pick(pool, regular, used)
-        moments = _moments(pool, part, n_live, used)
-        sequence = sorted(chosen + [m for m, _, _ in moments], key=lambda s: (s.start or datetime.min, s.id))
-        if part == "prep":
-            sequence = chosen[: max(2, regular // 6)] + _interleave(chosen[max(2, regular // 6):], [m for m, _, _ in moments])
-        mom = {id(m): (tt, kind) for m, tt, kind in moments}
+            chosen = _party(pool, regular, used) if part == "party" else _pick(pool, regular, used)
+            entries = [(s, None, "") for s in chosen] + [(m, tt, k) for m, tt, k in moments]
+            masters = [s for s in pool if s.cat.kind == FLOW]
+            missing = regular - len(chosen)
+            if missing > 0 and masters:                      # more moments of the masters, each a different one
+                taken = {(id(m), round(tt or 0)) for m, tt, _ in moments}
+                for k in range(missing):
+                    m = masters[k % len(masters)]
+                    frac = (k // len(masters) + 1) / (missing // len(masters) + 2)
+                    tt = FLOOR_SKIP + frac * max(1.0, m.duration - FLOOR_SKIP - 5)
+                    if (id(m), round(tt)) not in taken:
+                        entries.append((m, tt, ""))
+            entries.sort(key=lambda e: ((e[0].start or datetime.min) + timedelta(seconds=e[1] or 0), e[0].id))
+            entries = _no_back_to_back(entries)
         cursor = t
         gi = 0
-        for s in sequence:
-            if id(s) in mom:
-                tt, kind = mom[id(s)]
+        for s, tt, kind in entries:
+            if kind:
                 ln = _snap(FILM_LEN if kind == "film" else LIVE_LEN, beat)
-                slots.append(Slot(part, cursor, cursor + ln, s, s.window(ln, tt), kind))
-                cursor += ln
             else:
                 if gi >= len(grid):
-                    break
+                    continue
                 ln = grid[gi]
                 gi += 1
-                src = drone_window(s, ln)[0] if s.cat.kind == DRONE else s.window(ln)
-                slots.append(Slot(part, cursor, cursor + ln, s, src))
-                cursor += ln
+            slots.append(_slot(part, cursor, ln, s, tt, kind, pool, used))
+            cursor += ln
         t = cursor
 
     # songs: each from its own start, crossfading into the next
@@ -241,6 +247,46 @@ def build(p: Project, st: Structure, descs: dict[str, dict]) -> WeddingHighlight
         songs.append((role, Media(str(song), an["duration"], has_video=False, audio_channels=2), a0, b0))
     title_at = next((sl.start for sl in slots if sl.part == "title"), 0.0)
     return WeddingHighlights(slots, songs, title_at, warnings)
+
+
+def _slot(part: str, t: float, ln: float, s: Shot, prefer: float | None, live: str, pool: list[Shot],
+          used: set[str]) -> Slot:
+    """A slot of exactly ln seconds (it sits on the beat grid): a clip that is too short gives way to an
+    unused clip of the same part filmed nearest in time, else it is slowed just enough to fill it."""
+    if s.duration < ln + 0.1:
+        alts = [x for x in pool if x.id not in used and x.duration >= ln + 0.3 and (x.media.audio_channels or not live)]
+        if alts:
+            s = min(alts, key=lambda x: abs(((x.start or datetime.min) - (s.start or datetime.min)).total_seconds()))
+            used.add(s.id)
+            prefer = None
+        else:
+            speed = max(0.5, (s.duration - 0.1) / ln)
+            return Slot(part, t, t + ln, s, 0.0, "", speed)
+    src = drone_window(s, ln)[0] if s.cat.kind == DRONE else s.window(ln, prefer)
+    return Slot(part, t, t + ln, s, src, live)
+
+
+def _interleave_entries(a: list, b: list) -> list:
+    if not b:
+        return a
+    out, step, bi = [], max(1, len(a) // (len(b) + 1)), 0
+    for i, e in enumerate(a):
+        out.append(e)
+        if bi < len(b) and (i + 1) % step == 0:
+            out.append(b[bi])
+            bi += 1
+    return out + b[bi:]
+
+
+def _no_back_to_back(entries: list) -> list:
+    """Never the same clip in two neighbouring slots: move a different one in between."""
+    out = list(entries)
+    for i in range(1, len(out)):
+        if out[i][0].id == out[i - 1][0].id:
+            j = next((j for j in range(i + 1, len(out)) if out[j][0].id != out[i][0].id), None)
+            if j is not None:
+                out[i], out[j] = out[j], out[i]
+    return out
 
 
 def _interleave(a: list[Shot], b: list[Shot]) -> list[Shot]:
@@ -330,7 +376,7 @@ def sequence(name: str, hl: WeddingHighlights) -> Sequence:
     for sl in hl.slots:
         if sl.shot is None:
             continue
-        seq.video[0].append(Item(sl.shot.media, round(sl.start * FPS), round(sl.end * FPS), sl.src_in))
+        seq.video[0].append(Item(sl.shot.media, round(sl.start * FPS), round(sl.end * FPS), sl.src_in, sl.speed))
     ducks = [(round(sl.start * FPS), round(sl.end * FPS)) for sl in hl.slots if sl.live]
     for k, (role, media, a, b) in enumerate(hl.songs):
         pair = (0, 1) if k % 2 == 0 else (2, 3)
