@@ -1,0 +1,14 @@
+# Review copies: small enough to send to the couple or a second editor.
+name: H.264 1080p review copy
+extension: mp4
+width: 1920
+video:
+  encoder: h264_videotoolbox
+  args: ["-b:v", "12M", "-pix_fmt", "yuv420p", "-tag:v", "avc1"]
+  fallback: libx264
+  fallback_args: ["-crf", "20", "-preset", "medium", "-pix_fmt", "yuv420p"]
+audio:
+  args: ["-c:a", "aac", "-b:a", "256k"]
+mbps: 12.5                 # for the space check
+lut: ""                    # optional .cube file (e.g. S-Log3 -> Rec.709)
+naming: "{name}"           # {name} = camera file name, {folder} = category number, {n} = position in the folder

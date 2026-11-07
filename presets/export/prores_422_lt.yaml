@@ -1,0 +1,14 @@
+# Edit-friendly intermediate: ProRes 422 LT at the source size.
+name: ProRes 422 LT
+extension: mov
+width: 0
+video:
+  encoder: prores_videotoolbox
+  args: ["-profile:v", "lt"]
+  fallback: prores_ks
+  fallback_args: ["-profile:v", "1"]
+audio:
+  args: ["-c:a", "pcm_s16le"]
+mbps: 410                  # 4K25 ProRes 422 LT
+lut: ""
+naming: "{name}"

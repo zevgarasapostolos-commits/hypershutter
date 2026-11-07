@@ -1,0 +1,14 @@
+# Archive: full resolution in HEVC, about a third of the camera files' size.
+name: HEVC 4K archive
+extension: mov
+width: 0                   # 0 = keep the source size
+video:
+  encoder: hevc_videotoolbox
+  args: ["-b:v", "45M", "-tag:v", "hvc1"]
+  fallback: libx265
+  fallback_args: ["-crf", "22", "-preset", "medium", "-tag:v", "hvc1"]
+audio:
+  args: ["-c:a", "pcm_s16le"]
+mbps: 47
+lut: ""
+naming: "{name}"

@@ -15,7 +15,7 @@ from hypershutter.core.media import fmt_duration, fmt_offset
 from hypershutter.core.project import Project
 
 # Subcommands still to be built, with the milestone that delivers them.
-PLANNED: dict[str, str] = {"export": "T6"}
+PLANNED: dict[str, str] = {}
 
 
 def cmd_doctor(_args) -> int:
@@ -450,6 +450,49 @@ def cmd_proxies(args) -> int:
     return 0
 
 
+def cmd_export(args) -> int:
+    from hypershutter.core import execute, export, review
+    if args.list_presets or not args.folder:
+        for k, pr in export.presets().items():
+            print(f"{k:20s} {pr['name']}  (~{pr.get('mbps', 0)} Mb/s, .{pr['extension']})")
+        return 0
+    folder = Path(args.folder).expanduser()
+    p = Project.load(folder)
+    if p is None:
+        print("scan this event first")
+        return 1
+    st = review.load(p)
+    if args.dest is None:
+        try:
+            execute.check_allowed(p, force=True)
+        except PermissionError:
+            print("this is a read-only reference project: choose --dest outside it")
+            return 1
+    items = export.plan(p, st, args.preset, Path(args.dest).expanduser() if args.dest else None,
+                        clips=args.clips.split(",") if args.clips else None,
+                        folders=args.folders.split(",") if args.folders else None)
+    gb = export.estimate_bytes(items, args.preset) / 1e9
+    print(f"{len(items)} clips -> {items[0].out.parents[1] if items else '-'} ({args.preset}, about {gb:.1f} GB)")
+    problems = export.check(items, args.preset)
+    for pr in problems:
+        print(f"  blocked: {pr}")
+    if problems or args.dry_run:
+        return 1 if problems else 0
+    q = export.queue(workers=args.workers)
+    n = export.enqueue(q, p, items, args.preset)
+    print(f"{n} exports queued")
+    if args.queue_only:
+        return 0
+    t0 = time.time()
+    k = 0
+    while (job := q._next()) is not None:
+        q.run_one(job)
+        k += 1
+        print(f"  {k}/{n} {job.rel}  ({time.time() - t0:.0f} s)", flush=True)
+    print(f"exports: {q.counts('export')}")
+    return 0
+
+
 def cmd_drives(args) -> int:
     from hypershutter.core import drives
     for d in drives.drives():
@@ -574,6 +617,18 @@ def main(argv: list[str] | None = None) -> int:
     sp.add_argument("--status", action="store_true", help="show the queue")
     sp.add_argument("--queue-only", action="store_true", help="queue them for the app, do not run now")
     sp.set_defaults(func=cmd_proxies)
+
+    sp = sub.add_parser("export", help="batch export (per-clip transcodes with a preset; no editing)")
+    sp.add_argument("folder", nargs="?")
+    sp.add_argument("--preset", default="h264_1080_review")
+    sp.add_argument("--dest", help="output folder (default: <event>/Exports)")
+    sp.add_argument("--folders", help="category numbers or keys, e.g. 05,08a (default: everything)")
+    sp.add_argument("--clips", help="clip ids, comma separated")
+    sp.add_argument("--workers", type=int, default=1)
+    sp.add_argument("--dry-run", action="store_true")
+    sp.add_argument("--queue-only", action="store_true", help="queue them for the app, do not run now")
+    sp.add_argument("--list-presets", action="store_true")
+    sp.set_defaults(func=cmd_export)
 
     sp = sub.add_parser("drives", help="connected drives: space, projects, proxies, warnings")
     sp.set_defaults(func=cmd_drives)

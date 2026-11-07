@@ -35,6 +35,7 @@ class Job:
     started: float = 0.0
     finished: float = 0.0
     bytes_out: int = 0
+    meta: str = ""       # JSON: what the runner needs besides the paths (e.g. the clip length)
 
 
 def _db(path: Path | None = None) -> sqlite3.Connection:
@@ -43,6 +44,8 @@ def _db(path: Path | None = None) -> sqlite3.Connection:
                   preset TEXT, out TEXT, status TEXT, error TEXT DEFAULT '', progress REAL DEFAULT 0,
                   created REAL, started REAL DEFAULT 0, finished REAL DEFAULT 0, bytes_out INTEGER DEFAULT 0)""")
     db.execute("CREATE INDEX IF NOT EXISTS jobs_out ON jobs(out)")
+    if "meta" not in [r[1] for r in db.execute("PRAGMA table_info(jobs)")]:
+        db.execute("ALTER TABLE jobs ADD COLUMN meta TEXT DEFAULT ''")
     return db
 
 
@@ -75,15 +78,15 @@ class JobQueue:
 
     # ---------- queue ----------
 
-    def add(self, kind: str, project: str, rel: str, preset: str, out: str) -> int | None:
+    def add(self, kind: str, project: str, rel: str, preset: str, out: str, meta: str = "") -> int | None:
         """Queue a job unless the same output is already queued, running or done."""
         with self._lock:
             row = self._db.execute("SELECT id, status FROM jobs WHERE out=? AND kind=? ORDER BY id DESC LIMIT 1",
                                    (out, kind)).fetchone()
             if row and row[1] in (QUEUED, RUNNING, DONE) and (row[1] != DONE or Path(out).exists()):
                 return None
-            cur = self._db.execute("INSERT INTO jobs (kind, project, rel, preset, out, status, created) VALUES (?,?,?,?,?,?,?)",
-                                   (kind, project, rel, preset, out, QUEUED, time.time()))
+            cur = self._db.execute("INSERT INTO jobs (kind, project, rel, preset, out, status, created, meta) "
+                                   "VALUES (?,?,?,?,?,?,?,?)", (kind, project, rel, preset, out, QUEUED, time.time(), meta))
             self._db.commit()
             self._idle.notify_all()
             return cur.lastrowid
