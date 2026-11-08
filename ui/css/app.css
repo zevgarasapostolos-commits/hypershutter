@@ -81,7 +81,7 @@ input, textarea, select {
   border: 1px solid rgba(64, 83, 102, 0.28); border-radius: 6px; padding: 7px 10px; background: var(--hs-white);
 }
 input:focus, textarea:focus, select:focus { border-color: var(--hs-gold); outline: none; }
-.field input, .field textarea { width: 100%; max-width: 560px; }
+.field input:not([type="checkbox"]):not([type="radio"]), .field textarea { width: 100%; max-width: 560px; }
 .segs { display: inline-flex; border: 1px solid rgba(64, 83, 102, 0.28); border-radius: 6px; overflow: hidden; }
 .seg { border: 0; background: none; padding: 7px 16px; cursor: pointer; color: var(--hs-ink-muted); }
 .seg + .seg { border-left: 1px solid rgba(64, 83, 102, 0.18); }
@@ -262,7 +262,9 @@ pre.report { max-height: 520px; overflow: auto; }
 .pill.critical { color: #A33A2B; border-color: #A33A2B; }
 .clickable { cursor: pointer; }
 .clickable:hover td { background: var(--hs-surface); }
-.checks { display: flex; flex-wrap: wrap; gap: 6px 18px; }
+.checks { display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: 8px 24px; }
+.checks .toggle { display: flex; align-items: flex-start; gap: 8px; line-height: 1.35; }
+.checks .toggle input { flex: none; margin: 2px 0 0; padding: 0; }
 .inline3 { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: var(--hs-space-3); }
 .inline3 input { width: 100%; }
 

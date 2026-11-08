@@ -101,6 +101,11 @@ def check(items: list[Item], preset_name: str) -> list[str]:
     return [problem] if problem else []
 
 
+def space(items: list[Item], preset_name: str) -> dict | None:
+    """The space check as data, for the app's own language."""
+    return drives.space_problem(items[0].out.parent, estimate_bytes(items, preset_name)) if items else None
+
+
 def command(src: Path, out: Path, preset: dict, fallback: bool = False) -> list[str]:
     ffmpeg = config.find_tool("ffmpeg") or "ffmpeg"
     v = preset["video"]

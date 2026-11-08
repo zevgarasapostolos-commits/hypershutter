@@ -129,16 +129,22 @@ def drives(volumes: Path = VOLUMES, with_projects: bool = True) -> list[Drive]:
     return out
 
 
-def check_space(dest: Path, need: int) -> str | None:
-    """A problem message when `need` bytes do not fit on dest's drive with the warning margin left."""
+def space_problem(dest: Path, need: int) -> dict | None:
+    """What does not fit when `need` bytes go on dest's drive with the warning margin left."""
     p = Path(dest)
     while not p.exists():
         p = p.parent
     u = shutil.disk_usage(p)
     after = u.free - need - planned_bytes().get(_volume_of(p), 0)
     if after < thresholds()["critical_gb"] * 1e9:
-        return f"{p}: needs {need / 1e9:.1f} GB, {u.free / 1e9:.1f} GB free"
+        return {"path": str(p), "need_gb": round(need / 1e9, 1), "free_gb": round(u.free / 1e9, 1)}
     return None
+
+
+def check_space(dest: Path, need: int) -> str | None:
+    """The same as an English sentence (CLI, errors)."""
+    x = space_problem(dest, need)
+    return f"{x['path']}: needs {x['need_gb']:.1f} GB, {x['free_gb']:.1f} GB free" if x else None
 
 
 def as_dict(d: Drive) -> dict:

@@ -504,7 +504,8 @@ class Bridge:
     def export_plan(self, preset: str, folders: list[str] | None = None, dest: str | None = None) -> dict:
         p, items = self._export_items(preset, folders, dest)
         return {"clips": len(items), "gb": round(export.estimate_bytes(items, preset) / 1e9, 1),
-                "problems": export.check(items, preset), "base": str(items[0].out.parents[1]) if items else "",
+                "problems": export.check(items, preset), "space": export.space(items, preset),
+                "base": str(items[0].out.parents[1]) if items else "",
                 "folders": [{"key": c.key, "folder": c.folder, "clips": len(c.clips)} for c in (review.load(p).categories if review.load(p) else [])]}
 
     def start_export(self, preset: str, folders: list[str] | None = None, dest: str | None = None) -> dict:

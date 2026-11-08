@@ -330,5 +330,6 @@
   "ingest.p_on_card": "{path} is on the card itself: choose another drive.",
   "ingest.p_not_writable": "{path} cannot be written to.",
   "ingest.eject": "Eject card",
-  "ingest.ejected": "Card ejected. You can remove it."
+  "ingest.ejected": "Card ejected. You can remove it.",
+  "export.p_space": "{path}: needs {need} GB, has {free} GB free. Pick another destination with “{choose}”."
 }

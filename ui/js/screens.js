@@ -305,12 +305,13 @@
           .map((p) => `<button class="seg ${p.id === E.preset ? "on" : ""}" data-p="${esc(p.id)}">${esc(p.name)}</button>`)
           .join("")}</div></div>
         ${P.folders.length ? `<div class="field"><span class="label">${esc(t("export.folders"))}</span><div class="checks">${P.folders
-          .map((f) => `<label class="toggle"><input type="checkbox" data-f="${esc(f.key)}" ${E.folders.includes(f.key) ? "checked" : ""}> ${esc(f.folder)} <span class="muted">(${f.clips})</span></label>`)
+          .map((f) => `<label class="toggle"><input type="checkbox" data-f="${esc(f.key)}" ${E.folders.includes(f.key) ? "checked" : ""}><span>${esc(f.folder)} <span class="muted">(${f.clips})</span></span></label>`)
           .join("")}</div><span class="hint">${esc(t("export.folders_hint"))}</span></div>` : ""}
         <div class="field"><span class="label">${esc(t("export.dest"))}</span><div class="inline"><code>${esc(E.dest || t("export.dest_default"))}</code>
           <button class="btn small quiet" id="ex-dest">${esc(t("export.choose"))}</button></div></div>
         <p>${esc(t("export.plan", { clips: P.clips || 0, gb: P.gb || 0 }))}</p>
-        ${(P.problems || []).map((x) => `<p class="warn">${esc(x)}</p>`).join("")}
+        ${(P.space ? [t("export.p_space", { path: P.space.path, need: P.space.need_gb, free: P.space.free_gb, choose: t("export.choose") })] : P.problems || [])
+          .map((x) => `<p class="warn">${esc(x)}</p>`).join("")}
         <div class="actions"><button class="btn primary" id="ex-go" ${P.clips && !(P.problems || []).length ? "" : "disabled"}>${esc(t("export.go"))}</button></div></section>
         ${queueCard("export")}`;
       $$("#presets .seg").forEach((b) => (b.onclick = async () => ((E.preset = b.dataset.p), await planExport(), HS.screens.export.render())));
