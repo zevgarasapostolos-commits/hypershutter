@@ -1,6 +1,6 @@
 # Wigroom — Project Brief for Claude Code
 
-**Name.** The app is called **Wigroom** (renamed from HyperShutter on 8 Nov 2026). Only the visible name changed. Internal identifiers keep `hypershutter`: the Python package and CLI, the `.hypershutter/` folder on drives, `~/Library/Application Support/HyperShutter/`, the Keychain entry, the bundle identifier and the GitHub repository. Renaming those would orphan the undo journals, the caches and the stored key.
+**Name.** The app is called **Wigroom** (renamed from HyperShutter on 8 Nov 2026). Only the visible name changed. Internal identifiers keep `hypershutter`: the Python package and CLI, the `.hypershutter/` folder on drives, `~/Library/Application Support/HyperShutter/`, the Keychain entry and the bundle identifier. The GitHub repository is `wigroom`. Renaming those would orphan the undo journals, the caches and the stored key.
 
 This file is the single source of truth for the project. Read it fully at the start of every session.
 
@@ -223,7 +223,7 @@ Look and feel: **professional, calm, luxurious**, like a premium native Mac app.
 ## 9. GitHub
 
 - Check `gh auth status`; if needed install with Homebrew and ask the user to run `gh auth login` himself.
-- **Private** repository `hypershutter` (can go public later for the CV).
+- Public repository `wigroom`.
 - `.gitignore`: venv, caches, frames, proxies, `reports/` with client data, `.env`, `*.app` build output, macOS junk.
 - **Commit and push after every working change** (clear English messages). Tag `v0.1.0` at the first packaged `.app`.
 - Keep `README.md` current: what it is, install/run, architecture diagram, evaluation and benchmark results.

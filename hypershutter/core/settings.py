@@ -22,7 +22,7 @@ DEFAULTS = {
     "warn_gb": 50.0,
     "critical_gb": 10.0,
     "support_email": "support@hypershutter.app",       # placeholder until the user gives one
-    "issues_url": "https://github.com/zevgarasapostolos-commits/hypershutter/issues",
+    "issues_url": "https://github.com/zevgarasapostolos-commits/wigroom/issues",
     "onboarded": False,
 }
 
