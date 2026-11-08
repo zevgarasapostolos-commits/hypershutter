@@ -177,14 +177,25 @@ def _subsample(frames: list[Frame], max_frames: int) -> list[Frame]:
     return [frames[int(k * step)] for k in range(max_frames)]
 
 
+def _tag(clip: Clip, model: str, fs: FrameSettings, audio: str = "") -> str:
+    key = store.file_key(clip.name, clip.size, clip.mtime)
+    version = PROMPT_VERSION if not audio else f"{PROMPT_VERSION_AUDIO}|{hashlib.sha1(audio.encode()).hexdigest()[:12]}"
+    return hashlib.sha1(f"{key}|{model}|{fs.key()}|{version}".encode()).hexdigest()[:24]
+
+
+def cache_files(clip: Clip, audio: str = "") -> list[Path]:
+    """Every description this clip can have under the app's settings."""
+    variants = ("", audio) if audio else ("",)
+    return [config.cache_dir("describe") / f"{_tag(clip, cost.DEFAULT_MODEL, FrameSettings(interval=i), a)}.json"
+            for i in (1.0, 2.0, 4.0) for a in variants]
+
+
 def _cache_file(p: Project, clip: Clip, model: str, fs: FrameSettings, audio: str = "") -> Path:
     """Keyed by the file itself (name, size, mtime), not by the project: a copy of the same clip
     or a re-mounted drive is not paid for twice. Older per-project caches are moved over. With
     sound the key also holds the audio text, so a new analysis is a new description."""
-    key = store.file_key(clip.name, clip.size, clip.mtime)
-    version = PROMPT_VERSION if not audio else f"{PROMPT_VERSION_AUDIO}|{hashlib.sha1(audio.encode()).hexdigest()[:12]}"
-    tag = hashlib.sha1(f"{key}|{model}|{fs.key()}|{version}".encode()).hexdigest()[:24]
-    path = config.cache_dir("describe") / f"{tag}.json"
+    path = config.cache_dir("describe") / f"{_tag(clip, model, fs, audio)}.json"
+    tag = path.stem
     legacy = config.cache_dir("describe") / store.project_id(Path(p.root)) / f"{tag}.json"
     if not path.exists() and legacy.exists():
         legacy.rename(path)

@@ -69,7 +69,7 @@ def classify(total: int, free_after: int, t: dict | None = None) -> tuple[str, s
 def _projects_by_volume() -> dict[str, list[ProjectUse]]:
     """Known projects (recent ones) grouped by the volume they live on, sized from their clips."""
     out: dict[str, list[ProjectUse]] = {}
-    for r in store.recent_projects(50):
+    for r in store.recent_projects(50, include_hidden=True):      # a removed list entry still takes up space
         root = Path(r["root"])
         if not root.exists():
             continue

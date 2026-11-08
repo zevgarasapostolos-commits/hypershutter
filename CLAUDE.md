@@ -190,7 +190,7 @@ Keep the existing repo layout. New modules for the missing thesis parts: `core/i
 
 - **The interface never mentions AI, models, API keys or the Keychain** (the user's decision, 8 Nov 2026). The README, docs and the thesis still describe them.
 - **First-run onboarding**: welcome, language, ffmpeg check, default destination drives.
-- **Projects / Home**: recent projects, new project (event type, names, date, optional day schedule).
+- **Projects / Home**: recent projects, new project (event type, names, date, optional day schedule). A project can be removed from the list, optionally with its analysis data; drives, journals and undo are never touched.
 - **Ingest**: detected cards, source labels, destinations, pre-flight, live progress, verify status, reports.
 - **Analyze**: progress for scan, clock sync, checks, frames, audio, sorting; cost estimate and confirm.
 - **Review**: the main screen (6.8).

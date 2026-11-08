@@ -105,6 +105,11 @@ input:focus, textarea:focus, select:focus { border-color: var(--hs-gold); outlin
   border: 0; border-bottom: 1px solid var(--hs-hairline); background: none; padding: 10px 4px; cursor: pointer;
 }
 .recent-item:hover:not(:disabled) { background: var(--hs-surface); }
+.recent-row { display: flex; align-items: center; gap: 8px; border-bottom: 1px solid var(--hs-hairline); }
+.recent-row .recent-item { flex: 1; min-width: 0; border-bottom: 0; overflow-wrap: anywhere; }
+.recent-row .btn { flex: none; }
+.modal-check { display: flex; align-items: flex-start; gap: 8px; margin-top: var(--hs-space-3); }
+.modal-check input { flex: none; margin: 3px 0 0; padding: 0; }
 .recent-item:disabled { cursor: default; opacity: 0.6; }
 .recent-name { color: var(--hs-slate); font-weight: 600; }
 .recent-item .muted { font-size: 12px; }

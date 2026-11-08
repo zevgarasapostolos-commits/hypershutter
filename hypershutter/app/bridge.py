@@ -17,7 +17,7 @@ from pathlib import Path
 from typing import Callable
 
 from hypershutter import __version__
-from hypershutter.core import (cards, checks, config, cost, credentials, describe, drives, evaluate, execute, export,
+from hypershutter.core import (cards, checks, config, cost, credentials, describe, drives, evaluate, execute, export, forget,
                                frames, index, ingest, jobs, pipeline, proxies, review, scan, settings, store, sync)
 from hypershutter.core.media import fmt_duration, fmt_offset
 from hypershutter.core.project import Project
@@ -118,6 +118,24 @@ class Bridge:
             out.append({**r, "root": now or r["root"], "available": now is not None})
         return out
 
+    def project_data_size(self, path: str) -> dict:
+        return {"bytes": forget.size(Path(path))}
+
+    def remove_project(self, path: str, delete_data: bool = False) -> dict:
+        """Off the list, and optionally the analysis data too. Nothing on any drive changes."""
+        with self._lock:
+            if self._job and self._job["status"] == "running":
+                raise RuntimeError("another task is still running")
+        root = Path(path)
+        if self._p is not None and store.project_id(Path(self._p.root)) == store.project_id(root):
+            self._p, self._by_clip, self._audio, self._st = None, None, None, None
+        freed = 0
+        if delete_data:
+            freed = forget.forget(root)
+        else:
+            store.hide_project(root)
+        return {"freed": freed, "recent": self.recent()}
+
     def pick_folder(self) -> str | None:
         return self._pick()
 
@@ -126,6 +144,7 @@ class Bridge:
         if not root.is_dir():
             raise ValueError("not a folder")
         p = Project.load(root)
+        store.show_project(root)                        # opened again: back on the list
         self._p, self._by_clip, self._audio, self._st = p, None, None, None
         return {"root": str(root), "name": root.name, "known": p is not None,
                 "event_type": p.event_type if p else "baptism", "event_name": p.event_name if p else "",

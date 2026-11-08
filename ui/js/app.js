@@ -44,15 +44,22 @@
     toast.timer = setTimeout(() => (el.hidden = true), isError ? 7000 : 3500);
   }
 
-  function ask(message) {
+  function ask(message, extra) {
     return new Promise((resolve) => {
       const m = $("#modal");
       $("#modal-text").textContent = message;
+      $("#modal-extra").hidden = !extra;
+      if (extra) {
+        $("#modal-hint").textContent = extra.hint;
+        $("#modal-check").checked = false;
+        $("#modal-check-label").textContent = extra.check;
+        $("#modal-check-hint").textContent = extra.checkHint;
+      }
       m.hidden = false;
       const done = (v) => {
         m.hidden = true;
         $("#modal-ok").onclick = $("#modal-cancel").onclick = null;
-        resolve(v);
+        resolve(v && extra ? { checked: $("#modal-check").checked } : v);
       };
       $("#modal-ok").onclick = () => done(true);
       $("#modal-cancel").onclick = () => done(false);
@@ -151,9 +158,10 @@
           S.recent.length
             ? `<ul class="recent-list">${S.recent
                 .map(
-                  (r) => `<li><button class="recent-item" data-root="${esc(r.root)}" ${r.available ? "" : "disabled"}>
+                  (r) => `<li class="recent-row"><button class="recent-item" data-root="${esc(r.root)}" ${r.available ? "" : "disabled"}>
                 <span class="recent-name">${esc(r.name)}</span>
-                <span class="muted">${esc(r.available ? r.root : t("home.missing"))}</span></button></li>`
+                <span class="muted">${esc(r.available ? r.root : t("home.missing"))}</span></button>
+                <button class="btn small quiet" data-remove="${esc(r.root)}" data-name="${esc(r.name)}">${esc(t("home.remove"))}</button></li>`
                 )
                 .join("")}</ul>`
             : `<p class="muted">${esc(t("home.none"))}</p>`
@@ -179,6 +187,7 @@
       }, 900);
     };
     $$(".recent-item").forEach((b) => (b.onclick = () => selectFolder(b.dataset.root)));
+    $$("[data-remove]").forEach((b) => (b.onclick = () => removeProject(b.dataset.remove, b.dataset.name)));
     if (p) {
       $$("#types .seg").forEach(
         (b) =>
@@ -191,6 +200,29 @@
       const or = $("#open-review");
       if (or) or.onclick = () => go("review");
     }
+  }
+
+  const fmtSize = (b) => (b >= 1e9 ? `${(b / 1e9).toFixed(1)} GB` : `${Math.max(1, Math.round(b / 1e6))} MB`);
+
+  async function removeProject(root, name) {
+    const { bytes } = await call("project_data_size", { path: root });
+    const answer = await ask(t("home.remove_q", { name }), {
+      hint: t("home.remove_hint"),
+      check: t("home.remove_data", { size: fmtSize(bytes) }),
+      checkHint: t("home.remove_data_hint"),
+    });
+    if (!answer) return;
+    const r = await call("remove_project", { path: root, delete_data: answer.checked });
+    S.recent = r.recent;
+    if (S.project && S.project.name === name) {
+      S.project = null;
+      S.scan = null;
+      S.review = null;
+      S.analyzeResult = null;
+      S.stages = {};
+    }
+    toast(answer.checked ? t("home.removed_data", { size: fmtSize(r.freed) }) : t("home.removed"));
+    render();
   }
 
   async function selectFolder(path) {

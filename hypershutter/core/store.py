@@ -20,6 +20,7 @@ CREATE TABLE IF NOT EXISTS probe_cache (key TEXT PRIMARY KEY, data TEXT NOT NULL
 CREATE TABLE IF NOT EXISTS projects (
     id TEXT PRIMARY KEY, name TEXT NOT NULL, root TEXT NOT NULL, data TEXT NOT NULL, updated REAL
 );
+CREATE TABLE IF NOT EXISTS hidden_projects (id TEXT PRIMARY KEY);
 """
 
 
@@ -52,6 +53,29 @@ def save_project(root: Path, data: dict) -> None:
     with connect() as db:
         db.execute("INSERT OR REPLACE INTO projects VALUES (?,?,?,?,?)",
                    (project_id(root), root.name, str(root), json.dumps(data, ensure_ascii=False), time.time()))
+        db.execute("DELETE FROM hidden_projects WHERE id=?", (project_id(root),))
+
+
+def hide_project(root: Path) -> None:
+    """Off the list; everything about the project stays and comes back when its folder is opened."""
+    with connect() as db:
+        db.execute("INSERT OR IGNORE INTO hidden_projects VALUES (?)", (project_id(root),))
+
+
+def show_project(root: Path) -> None:
+    with connect() as db:
+        db.execute("DELETE FROM hidden_projects WHERE id=?", (project_id(root),))
+
+
+def delete_project(root: Path) -> None:
+    with connect() as db:
+        db.execute("DELETE FROM projects WHERE id=?", (project_id(root),))
+        db.execute("DELETE FROM hidden_projects WHERE id=?", (project_id(root),))
+
+
+def all_project_data() -> list[dict]:
+    with connect() as db:
+        return [{"id": i, "data": json.loads(d)} for i, d in db.execute("SELECT id, data FROM projects").fetchall()]
 
 
 def locate(root: str) -> str | None:
@@ -69,9 +93,10 @@ def locate(root: str) -> str | None:
     return None
 
 
-def recent_projects(limit: int = 12) -> list[dict]:
+def recent_projects(limit: int = 12, include_hidden: bool = False) -> list[dict]:
+    where = "" if include_hidden else "WHERE id NOT IN (SELECT id FROM hidden_projects)"
     with connect() as db:
-        rows = db.execute("SELECT name, root, updated FROM projects ORDER BY updated DESC LIMIT ?", (limit,)).fetchall()
+        rows = db.execute(f"SELECT name, root, updated FROM projects {where} ORDER BY updated DESC LIMIT ?", (limit,)).fetchall()
     return [{"name": n, "root": r, "updated": u} for n, r, u in rows]
 
 

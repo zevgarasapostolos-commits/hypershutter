@@ -324,5 +324,12 @@
   "err.no_credit": "The sorting service has no credit left.",
   "err.unreachable": "The sorting service cannot be reached. Check your internet connection.",
   "err.service": "The sorting service returned an error. Try again.",
-  "drives.left": "{gb} GB left ({pct}%)"
+  "drives.left": "{gb} GB left ({pct}%)",
+  "home.remove": "Remove",
+  "home.remove_q": "Remove “{name}” from the list?",
+  "home.remove_hint": "The files on your drives do not change. You can open the folder again whenever you like.",
+  "home.remove_data": "Also delete its analysis data ({size})",
+  "home.remove_data_hint": "This deletes the analysis, the proposed folders, your corrections, the frames and the sound from this Mac. Sorting it again will need a new analysis at a new cost. Undoing an organize keeps working.",
+  "home.removed": "Removed from the list",
+  "home.removed_data": "Removed, and {size} of data deleted"
 }
