@@ -5,11 +5,10 @@ from __future__ import annotations
 import json
 from pathlib import Path
 
-from hypershutter.core import config, cost
+from hypershutter.core import config
 
 DEFAULTS = {
     "language": "en",
-    "model": cost.DEFAULT_MODEL,
     "frame_interval": 2.0,             # seconds per frame (1, 2 or 4)
     "use_sound": True,                 # sound analysis in the sorting
     "proxy_preset": "prores_proxy",

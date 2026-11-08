@@ -11,8 +11,6 @@ from hypershutter.core.sheets import SheetLayout, image_tokens, sheet_shapes
 
 MODELS = {
     "claude-opus-5-5": {"label": "Opus 5.5 (default, most capable)", "price": (4.00, 20.00)},
-    "claude-sonnet-5-5": {"label": "Sonnet 5.5 (half the cost)", "price": (2.00, 10.00)},
-    "claude-haiku-5-5": {"label": "Haiku 5.5 (cheapest)", "price": (0.10, 0.50)},
 }
 DEFAULT_MODEL = "claude-opus-5-5"     # the user's choice: accuracy over cost
 

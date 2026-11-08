@@ -27,10 +27,9 @@ def test_sheet_fits_vision_limits_and_matches_shape_estimate(tmp_path):
 
 
 def test_estimate_scales_with_frames():
-    small = cost.estimate([3, 3], "claude-sonnet-5-5")
-    big = cost.estimate([300, 300], "claude-sonnet-5-5")
+    small = cost.estimate([3, 3], "claude-opus-5-5")
+    big = cost.estimate([300, 300], "claude-opus-5-5")
     assert big.sheets == 2 * 13 and big.cost_usd > small.cost_usd > 0
-    assert cost.estimate([300], "claude-haiku-5-5").cost_usd < cost.estimate([300], "claude-sonnet-5-5").cost_usd
 
 
 @pytest.fixture

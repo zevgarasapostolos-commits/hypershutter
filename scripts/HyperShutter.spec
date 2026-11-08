@@ -4,9 +4,10 @@ from pathlib import Path
 from PyInstaller.utils.hooks import collect_all, collect_submodules
 
 ROOT = Path(SPECPATH).parent
-datas = [(str(ROOT / "presets"), "presets"), (str(ROOT / "ui"), "ui")]
+datas = [(str(ROOT / "presets"), "presets"), (str(ROOT / "ui"), "ui"),
+         (str(ROOT / "THIRD_PARTY_LICENSES.md"), ".")]
 binaries = []
-hiddenimports = ["keyring.backends.macOS", "webview.platforms.cocoa"] + collect_submodules("hypershutter")
+hiddenimports = ["webview.platforms.cocoa"] + collect_submodules("hypershutter")
 for pkg in ("mlx", "mlx_whisper", "sherpa_onnx", "webview", "tiktoken", "tiktoken_ext"):
     try:
         d, b, h = collect_all(pkg)

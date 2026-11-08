@@ -7,6 +7,7 @@ saved to Application Support; files move only through Apply (with its journal an
 
 from __future__ import annotations
 
+import re
 import subprocess
 import threading
 import time
@@ -27,6 +28,21 @@ SCRUB_FRAMES = 16                      # frames per clip sent to the Review grid
 STAGE = {"probe": "scan", "frames": "frames", "scene": "frames", "audio": "audio", "speech": "audio",
          "describe": "describe", "structure": "structure",
          "backup": "backup", "move": "move", "undo": "undo"}
+
+
+def public_error(e: Exception) -> str:
+    """What the app shows for a failed task: a locale key or plain text. The interface never names
+    the service behind the sorting."""
+    if isinstance(e, credentials.NotSetUp):
+        return "err.not_set_up"
+    text = str(e).lower()
+    if type(e).__module__.startswith("anthropic") or "anthropic" in text or "claude" in text:
+        if "credit" in text or "billing" in text:
+            return "err.no_credit"
+        if "connection" in text or "timeout" in text or "timed out" in text:
+            return "err.unreachable"
+        return "err.service"
+    return str(e)
 
 
 class Bridge:
@@ -72,9 +88,10 @@ class Bridge:
                 self._emit(type="job_done", name=name, result=result)
             except Exception as e:                      # surfaced in the UI, details in the terminal
                 traceback.print_exc()
+                message = public_error(e)
                 with self._lock:
-                    self._job.update(status="error", error=str(e))
-                self._emit(type="job_error", name=name, error=str(e))
+                    self._job.update(status="error", error=message)
+                self._emit(type="job_error", name=name, error=message)
 
         threading.Thread(target=run, daemon=True).start()
         return {"started": name}
@@ -91,8 +108,7 @@ class Bridge:
     def info(self) -> dict:
         s = settings.load()
         return {"version": __version__, "event_types": list(EVENT_TYPES),
-                "models": [{"id": k, "label": v["label"]} for k, v in cost.MODELS.items()],
-                "default_model": s["model"], "ffmpeg": bool(config.find_tool("ffmpeg")),
+                "ffmpeg": bool(config.find_tool("ffmpeg")),
                 "onboarded": s["onboarded"], "language": s["language"]}       # the Keychain is read only where the key is needed
 
     def recent(self) -> list[dict]:
@@ -150,11 +166,11 @@ class Bridge:
 
         return self._start("scan", work)
 
-    def _options(self, model: str | None = None, offline: bool = False) -> pipeline.AnalyzeOptions:
+    def _options(self, offline: bool = False) -> pipeline.AnalyzeOptions:
         p = self._require()
         s = settings.load()
         signals = ("time", "camera", "image", "audio") if s["use_sound"] else ("time", "camera", "image")
-        return pipeline.AnalyzeOptions(event_type=p.event_type, model=model or s["model"] or cost.DEFAULT_MODEL,
+        return pipeline.AnalyzeOptions(event_type=p.event_type, model=cost.DEFAULT_MODEL,
                                        offline=offline, schedule=p.schedule, interval=float(s["frame_interval"]),
                                        signals=signals)
 
@@ -198,13 +214,11 @@ class Bridge:
         p.save()
         return {"devices": self._devices()}
 
-    def start_analyze(self, model: str | None = None, offline: bool = False) -> dict:
+    def start_analyze(self, offline: bool = False) -> dict:
         p = self._require()
         if self._by_clip is None:
             raise RuntimeError("scan first")
-        if model and model not in cost.MODELS:
-            raise ValueError("unknown model")
-        opts = self._options(model, offline)
+        opts = self._options(offline)
 
         def work() -> dict:
             res = pipeline.run(p, opts, self._by_clip, self._progress, audio=self._audio)
@@ -533,7 +547,7 @@ class Bridge:
 
     def lab_report(self, name: str) -> str:
         f = config.reports_dir() / f"{Path(name).name}.md"
-        return f.read_text() if f.exists() else ""
+        return re.sub(r" · model .*$", "", f.read_text(), count=1, flags=re.M) if f.exists() else ""   # on screen: no model name
 
     def start_eval(self, offline: bool = False) -> dict:
         p = self._require()
@@ -551,25 +565,12 @@ class Bridge:
 
     def settings(self) -> dict:
         s = settings.load()
-        return {**s, "key": credentials.masked() if credentials.get_api_key() else "",
-                "proxy_presets": [{"id": k, "name": v["name"]} for k, v in proxies.presets().items()],
-                "export_presets": self.export_presets(), "ffmpeg": bool(config.find_tool("ffmpeg")),
-                "models": [{"id": k, "label": v["label"]} for k, v in cost.MODELS.items()]}
+        return {**s, "proxy_presets": [{"id": k, "name": v["name"]} for k, v in proxies.presets().items()],
+                "export_presets": self.export_presets(), "ffmpeg": bool(config.find_tool("ffmpeg"))}
 
     def save_settings(self, changes: dict) -> dict:
         settings.save(changes)
         return self.settings()
-
-    def set_api_key(self, key: str) -> dict:
-        """Straight from the password field to the Keychain; never logged or written to a file."""
-        if not key or len(key.strip()) < 20:
-            raise ValueError("that does not look like an API key")
-        credentials.set_api_key(key)
-        return {"key": credentials.masked()}
-
-    def delete_api_key(self) -> dict:
-        credentials.delete_api_key()
-        return {"key": ""}
 
     def open_link(self, kind: str) -> dict:
         s = settings.load()

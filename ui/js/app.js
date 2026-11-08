@@ -283,7 +283,6 @@
           renderAnalyze();
         })
     );
-    $$("input[name=model]").forEach((r) => (r.onchange = () => (S.model = r.value)));
     const run = $("#run-ai");
     if (run) run.onclick = () => startAnalyze(false);
     const off = $("#run-offline");
@@ -331,20 +330,13 @@
   }
 
   function aiCard(sc, running) {
-    if (!S.model) S.model = S.info.default_model;
-    const opts = sc.estimates
-      .map(
-        (e) => `<label class="model ${S.model === e.model ? "on" : ""}">
-        <input type="radio" name="model" value="${esc(e.model)}" ${S.model === e.model ? "checked" : ""}>
-        <span class="model-name">${esc(t("model." + e.model) === "model." + e.model ? e.label : t("model." + e.model))}</span>
-        <span class="muted">${esc(t("analyze.est", { cost: e.cost.toFixed(2), minutes: e.minutes }))}${
-          e.cached ? " · " + esc(t("analyze.cached", { n: e.cached })) : ""
-        }</span></label>`
-      )
-      .join("");
+    const e = sc.estimates[0];
+    const estimate = e
+      ? `<p>${esc(t("analyze.est", { cost: e.cost.toFixed(2), minutes: e.minutes }))}${e.cached ? " · " + esc(t("analyze.cached", { n: e.cached })) : ""}</p>`
+      : "";
     return `<section class="card">
       <h2 class="card-title">${esc(t("analyze.ai"))}</h2>
-      <div class="models">${opts}</div>
+      ${estimate}
       <p class="hint">${esc(t("analyze.ai_hint"))}</p>
       <div class="actions">
         <button class="btn primary" id="run-ai" ${running ? "disabled" : ""}>${esc(t("analyze.run"))}</button>
@@ -358,7 +350,7 @@
     S.analyzeResult = null;
     S.review = null;
     if (offline) S.stages.describe = { status: "skip" };
-    await call("start_analyze", { model: S.model, offline });
+    await call("start_analyze", { offline });
     setStage(offline ? "structure" : "describe", "run");
     renderAnalyze();
   }
@@ -749,12 +741,12 @@
       updateNav();
     } else if (ev.type === "job_error" && (ev.name === "apply" || ev.name === "undo")) {
       S.applyProgress = null;
-      toast(t("common.error") + ": " + ev.error, true);
+      toast(t("common.error") + ": " + t(ev.error), true);
       call("apply_plan").then((a) => ((S.apply = a), renderApplyCard()));
     } else if (ev.type === "job_error") {
       const running = STAGES.find((s) => S.stages[s] && S.stages[s].status === "run");
       if (running) S.stages[running].status = "error";
-      toast(t("common.error") + ": " + ev.error, true);
+      toast(t("common.error") + ": " + t(ev.error), true);
       if (S.view === "analyze") renderAnalyze();
     } else if (ev.type === "dropped") {
       selectFolder(ev.path);

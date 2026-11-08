@@ -52,7 +52,6 @@
         `<h2 class="card-title">${esc(t("onb.ffmpeg_title"))}</h2>${
           s.ffmpeg ? `<p class="ok">${esc(t("onb.ffmpeg_ok"))}</p>` : `<p class="warn">${esc(t("onb.ffmpeg_missing"))}</p><pre class="code">brew install ffmpeg</pre>`
         }`,
-        `<h2 class="card-title">${esc(t("onb.key_title"))}</h2><p>${esc(t("onb.key"))}</p>${keyField(s)}`,
         `<h2 class="card-title">${esc(t("onb.dest_title"))}</h2><p>${esc(t("onb.dest"))}</p>${destList(s.destinations || [], "onb-dest")}`,
       ];
       view().innerHTML = `${head(t("onb.eyebrow"), t("onb.title"))}
@@ -65,7 +64,6 @@
         await call("save_settings", { changes: { language: b.dataset.l } });
         HS.screens.onboarding.render();
       }));
-      bindKey(() => HS.screens.onboarding.load().then(() => HS.screens.onboarding.render()));
       bindDestList("onb-dest", s.destinations || [], async (list) => {
         X.settings = await call("save_settings", { changes: { destinations: list } });
         HS.screens.onboarding.render();
@@ -84,33 +82,6 @@
       };
     },
   };
-
-  function keyField(s) {
-    return `<div class="keyrow">${
-      s.key
-        ? `<span class="pill">${esc(t("set.key_saved", { key: s.key }))}</span> <button class="btn small quiet" id="key-del">${esc(t("set.key_delete"))}</button>`
-        : `<input type="password" id="key-in" autocomplete="off" spellcheck="false" placeholder="sk-ant-…"> <button class="btn small" id="key-save">${esc(t("set.key_save"))}</button>`
-    }</div><p class="hint">${esc(t("set.key_hint"))}</p>`;
-  }
-
-  function bindKey(after) {
-    const save = $("#key-save");
-    if (save)
-      save.onclick = async () => {
-        const v = $("#key-in").value;
-        $("#key-in").value = "";
-        await call("set_api_key", { key: v });
-        U().toast(t("set.key_ok"));
-        after();
-      };
-    const del = $("#key-del");
-    if (del)
-      del.onclick = async () => {
-        if (!(await U().ask(t("set.key_delete_q")))) return;
-        await call("delete_api_key");
-        after();
-      };
-  }
 
   function destList(list, id, free) {
     return `<ul class="dest-list" id="${id}">${list
@@ -384,7 +355,7 @@
             ${d.projects.map((p) => `<div class="muted small">${esc(p.name)}: ${gb(p.footage_bytes)} GB${p.proxies_bytes ? ` + ${gb(p.proxies_bytes)} GB proxies` : ""}</div>`).join("")}</td>
             <td>${meter(d.used, d.total, d.status)} <span class="muted small">${gb(d.used)} / ${gb(d.total)} GB</span></td>
             <td class="num">${gb(d.free)} GB</td><td class="num">${d.planned ? gb(d.free_after) + " GB" : "–"}</td>
-            <td><span class="pill ${d.status}">${esc(t("drives." + d.status))}</span> <span class="muted small">${esc(d.message || "")}</span></td></tr>`
+            <td><span class="pill ${d.status}">${esc(t("drives." + d.status))}</span> ${d.status === "ok" ? "" : `<span class="muted small drive-left">${esc(t("drives.left", { gb: (d.free_after / 1e9).toFixed(1), pct: d.total ? Math.round((100 * d.free_after) / d.total) : 0 }))}</span>`}</td></tr>`
           )
           .join("")}</tbody></table>
           <p class="hint">${esc(t("drives.hint"))}</p></section>
@@ -440,9 +411,8 @@
       view().innerHTML = `${head(t("set.eyebrow"), t("set.title"))}
         <section class="card"><h2 class="card-title">${esc(t("set.general"))}</h2>
           <div class="field"><span class="label">${esc(t("set.language"))}</span>${sel("s-language", [{ id: "en", label: "English" }, { id: "el", label: "Ελληνικά" }], HS.lang)}</div>
-          <div class="field"><span class="label">${esc(t("set.api_key"))}</span>${keyField(s)}</div></section>
+          </section>
         <section class="card"><h2 class="card-title">${esc(t("set.sorting"))}</h2>
-          <div class="field"><span class="label">${esc(t("set.model"))}</span>${sel("s-model", s.models, s.model)}</div>
           <div class="field"><span class="label">${esc(t("set.density"))}</span>${sel("s-density", [{ id: 1, label: t("set.every", { s: 1 }) }, { id: 2, label: t("set.every", { s: 2 }) }, { id: 4, label: t("set.every", { s: 4 }) }], s.frame_interval)}</div>
           <label class="toggle"><input type="checkbox" id="s-sound" ${s.use_sound ? "checked" : ""}> ${esc(t("set.sound"))}</label>
           <label class="field"><span class="label">${esc(t("set.rename"))}</span><input id="s-rename" value="${esc(s.rename_pattern)}" placeholder="{num}_{n:03d}_{name}"><span class="hint">${esc(t("set.rename_hint"))}</span></label>
@@ -466,7 +436,6 @@
         await save({ language: e.target.value });
         U().render();
       };
-      $("#s-model").onchange = (e) => save({ model: e.target.value });
       $("#s-density").onchange = (e) => save({ frame_interval: +e.target.value });
       $("#s-sound").onchange = (e) => save({ use_sound: e.target.checked });
       $("#s-rename").onchange = (e) => save({ rename_pattern: e.target.value.trim() });
@@ -476,7 +445,6 @@
       $("#s-wgb").onchange = (e) => save({ warn_gb: +e.target.value });
       $("#s-wpct").onchange = (e) => save({ warn_percent: +e.target.value });
       $("#s-cgb").onchange = (e) => save({ critical_gb: +e.target.value });
-      bindKey(() => HS.screens.settings.load().then(() => HS.screens.settings.render()));
       bindDestList("s-dest", s.destinations || [], async (list) => {
         X.settings = await call("save_settings", { changes: { destinations: list } });
         HS.screens.settings.render();
@@ -526,10 +494,9 @@
       view().innerHTML = `${head(t("about.eyebrow"), "HyperShutter", t("about.version", { v }))}
         <section class="card"><img class="hero-mark" src="/ui/img/mark.svg" alt=""><p>${esc(t("about.text"))}</p><p class="muted">${esc(t("about.credits"))}</p></section>
         <section class="card"><h2 class="card-title">${esc(t("about.licenses"))}</h2><ul class="flag-list">${[
-          "Anthropic Python SDK — MIT", "pywebview — BSD-3-Clause", "FFmpeg — LGPL/GPL (separate install)",
-          "sherpa-onnx — Apache-2.0", "CED-mini audio tagger (k2-fsa) — Apache-2.0", "mlx-whisper / Whisper large-v3-turbo — MIT",
-          "NumPy, SciPy — BSD-3-Clause", "OpenCV — Apache-2.0", "Pillow — MIT-CMU", "xxHash — BSD-2-Clause", "PyYAML — MIT", "keyring — MIT",
-        ].map((x) => `<li>${esc(x)}</li>`).join("")}</ul></section>`;
+          "pywebview — BSD-3-Clause", "FFmpeg — LGPL/GPL (separate install)", "NumPy, SciPy — BSD-3-Clause",
+          "OpenCV — Apache-2.0", "Pillow — MIT-CMU", "xxHash — BSD-2-Clause", "PyYAML — MIT",
+        ].map((x) => `<li>${esc(x)}</li>`).join("")}</ul><p class="hint">${esc(t("about.licenses_more"))}</p></section>`;
     },
   };
 

@@ -115,9 +115,9 @@ Source folder names vary (`cam apos`, `apos`, `dim`, `drone`, `sound` …): dete
 - **ffmpeg / ffprobe** from Homebrew (check on startup; guide installation if missing). Use VideoToolbox hardware encode/decode where it helps.
 - **Ingest**: `xxhash` (xxh3-64 or xxh64; MD5 optional for compatibility), threads for parallel destination writes, per-destination checksum manifest (ASC MHL if practical, otherwise a simple hash list + JSON report).
 - **Audio analysis**: ffmpeg for loudness/silence (`ebur128`, `silencedetect`); a small pretrained **local** audio-event classifier (e.g. PANNs / YAMNet / CLAP via onnxruntime — pick what runs well on Apple Silicon) for tags like speech, singing/chanting, music, applause, crowd, bells; and the existing local Whisper (`core/transcribe.py`, large-v3-turbo on mlx) for ritual phrases and speech.
-- **Anthropic Python SDK** for vision. Default model **Claude Opus 5.5** (the user's choice); Sonnet / Haiku as cheaper options.
+- **Anthropic Python SDK** for vision. Always **Claude Opus 5.5** (the user's choice; the app offers no other model).
 - **SQLite** for state and caches in `~/Library/Application Support/HyperShutter/`.
-- API key in the **macOS Keychain** (`keyring`), never in files or the repo.
+- API key in the **macOS Keychain**, never in files or the repo. Read and written through Apple's `security` tool so that macOS never shows a password prompt. There is no key field in the app (`hypershutter key set` in Terminal).
 - Packaging into **HyperShutter.app** with py2app or PyInstaller; `.icns` icon via `iconutil`.
 - Everything also runs as a **CLI** (the existing commands plus `ingest`, `proxies`, `drives`, `export`) — the GUI calls the same core.
 
@@ -188,7 +188,8 @@ Keep the existing repo layout. New modules for the missing thesis parts: `core/i
 
 ## 7. The app (sections like a real Mac app)
 
-- **First-run onboarding**: welcome, language, ffmpeg check, API key (Keychain), default destination drives.
+- **The interface never mentions AI, models, API keys or the Keychain** (the user's decision, 8 Nov 2026). The README, docs and the thesis still describe them.
+- **First-run onboarding**: welcome, language, ffmpeg check, default destination drives.
 - **Projects / Home**: recent projects, new project (event type, names, date, optional day schedule).
 - **Ingest**: detected cards, source labels, destinations, pre-flight, live progress, verify status, reports.
 - **Analyze**: progress for scan, clock sync, checks, frames, audio, sorting; cost estimate and confirm.
@@ -197,7 +198,7 @@ Keep the existing repo layout. New modules for the missing thesis parts: `core/i
 - **Drives**: drive monitoring (6.9); a compact drive status also visible in the sidebar.
 - **Background jobs** indicator (proxies, exports).
 - **Accuracy Lab**: evaluation runs and reports (6.7).
-- **Settings**: language, AI model, frame density, sorting preset hints and naming style, per-camera clock offsets, hash algorithm, proxy preset, export presets, warning thresholds, API key.
+- **Settings**: language, frame density, sorting preset hints and naming style, per-camera clock offsets, hash algorithm, proxy preset, export presets, warning thresholds.
 - **Features** — "What HyperShutter can do".
 - **Help & Support**: FAQ, "Contact support" (Mail with a pre-filled message to a support address from config — placeholder until given), "Report a bug" (GitHub Issues), "Export diagnostics" (logs and settings only — never footage or the API key).
 - **About**: version, credits, licenses.
