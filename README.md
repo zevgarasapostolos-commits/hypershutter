@@ -7,7 +7,7 @@ HyperShutter copies memory cards to several drives at once with checksum verific
 proxies in the background. It sorts the footage automatically by moment of the wedding (groom and
 bride getting ready, ceremony, reception …) using capture time, image and audio analysis and the
 camera. The videographer reviews and corrects the sorting before the files are organized into
-numbered Greeklish folders, with an undo journal, a shot index and per-folder contact sheets. It
+numbered folders, with an undo journal, a shot index and per-folder contact sheets. It
 also monitors drive space and does batch exports with presets. Weddings are the main target;
 baptisms and other events work through presets.
 
@@ -126,6 +126,7 @@ python3.13 -m venv .venv
 - [docs/t3-ingest.md](docs/t3-ingest.md): verified multi-drive ingest, manifests, MHL, benchmark
 - [docs/t4-t6-proxies-drives-organize-export.md](docs/t4-t6-proxies-drives-organize-export.md): proxies, drives, multi-drive organize, export
 - [docs/real-event-076.md](docs/real-event-076.md): the first real card, from ingest to organized folders and export
+- [docs/real-wedding-070.md](docs/real-wedding-070.md): the sorting on a second real wedding, with three cameras
 
 ## Accuracy
 
@@ -188,6 +189,12 @@ A real event that played no part in the tuning: 99.09 GB, 248 clips, copied to t
 | Organize | the same placement and the same checksums on both drives |
 
 See [docs/real-event-076.md](docs/real-event-076.md), including what this result does not prove.
+
+### A second real wedding
+
+391 clips from three cameras and two recorders, never organized before and not used for tuning:
+18 folders proposed, 4 clips flagged, no corrections needed in Review, $11.43. Details and limits in
+[docs/real-wedding-070.md](docs/real-wedding-070.md).
 
 ## Rights
 

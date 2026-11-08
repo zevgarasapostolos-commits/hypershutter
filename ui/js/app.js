@@ -202,6 +202,7 @@
     }
   }
 
+  const sameName = (a, b) => a.replace(/[—–]/g, "-") === b.replace(/[—–]/g, "-");
   const fmtSize = (b) => (b >= 1e9 ? `${(b / 1e9).toFixed(1)} GB` : `${Math.max(1, Math.round(b / 1e6))} MB`);
 
   async function removeProject(root, name) {
@@ -412,7 +413,7 @@
         const head = !c.sub && c.kind !== "unusable";
         return `<li class="folder ${c.key === S.current && !S.reviewOnly ? "active" : ""} ${c.sub ? "sub" : ""}" data-key="${esc(c.key)}">
           <span class="fnum">${c.number}${esc(c.sub)}</span>
-          <span class="fname"><span>${esc(folderName(c))}</span><small>${esc(c.label)}</small></span>
+          <span class="fname"><span>${esc(folderName(c))}</span>${sameName(folderName(c), c.label) ? "" : `<small>${esc(c.label)}</small>`}</span>
           <span class="fcount">${c.clips.length}${nrev ? `<i class="dot" title="${esc(t("review.check"))}"></i>` : ""}</span>
           ${
             head

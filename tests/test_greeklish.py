@@ -47,3 +47,11 @@ def test_folder_names():
 def test_safe_folder_name_never_nests():
     assert safe_folder_name("15 EVXES / SYNENTEFKSEIS ") == "15 EVXES - SYNENTEFKSEIS"
     assert "/" not in safe_folder_name("a/b:c")
+
+
+def test_new_folders_are_named_in_greek():
+    from hypershutter.core.greeklish import greek_folder_name, has_greek
+    assert greek_folder_name(8, "ΚΑΤΗΧΗΣΗ — B-ROLL", "a") == "08a ΚΑΤΗΧΗΣΗ - B-ROLL"
+    assert greek_folder_name(99, "ΑΧΡΗΣΤΑ") == "99 ΑΧΡΗΣΤΑ"
+    assert greek_folder_name(3, "ΓΑΜΟΣ: ΕΥΧΕΣ / ΚΕΡΑΣΜΑ.") == "03 ΓΑΜΟΣ- ΕΥΧΕΣ - ΚΕΡΑΣΜΑ"      # safe on disk
+    assert has_greek("01 ΓΑΜΟΣ") and not has_greek("01 GAMOS - B-ROLL")

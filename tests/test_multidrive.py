@@ -69,3 +69,20 @@ def test_a_copy_that_differs_stops_the_whole_organize(event, tmp_path):
     except RuntimeError as err:
         assert "differs from the main copy" in str(err)
     assert _snapshot(main) == before_main and _snapshot(copy) == before_copy        # nothing moved anywhere
+
+
+def test_organize_and_undo_with_greek_folder_names(event, tmp_path):
+    from hypershutter.core.greeklish import greek_folder_name
+    p, st = event
+    main = Path(p.root)
+    for c in st.categories:
+        c.folder = greek_folder_name(c.number, c.label_el, c.sub)
+    copy = _mirror(p, tmp_path / "driveB")
+    outside = lambda r: {k: v for k, v in _snapshot(r).items() if ".hypershutter" not in k}
+    before_main, before_copy = outside(main), outside(copy)
+    r = execute.apply_everywhere(p, st, PRESET, extras=index.generated_files)
+    assert [c["status"] for c in r["copies"]] == ["applied", "applied"]
+    folder = st.categories[0].folder
+    assert any("\u0370" <= ch <= "\u03ff" for ch in folder) and (main / folder).is_dir() and (copy / folder).is_dir()
+    execute.undo_everywhere(p)
+    assert outside(main) == before_main and outside(copy) == before_copy

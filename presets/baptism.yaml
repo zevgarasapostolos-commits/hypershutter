@@ -1,6 +1,6 @@
 # Baptism (βάφτιση) — HINTS ONLY, never a fixed list.
 # Each event gets its own structure built from what is actually in the footage.
-# Labels are Greek; folder names on disk are produced by core.greeklish.
+# Labels are Greek and are the folder names on disk; core.greeklish is for the index file name.
 # Source: docs/workflow-organizing.md + the user's organized baptisms (067–073).
 
 event_type: baptism

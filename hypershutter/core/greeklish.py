@@ -77,6 +77,16 @@ def safe_folder_name(name: str) -> str:
     return re.sub(r"\s+", " ", name).strip().rstrip(".")
 
 
+def has_greek(text: str) -> bool:
+    return any("\u0370" <= ch <= "\u03ff" or "\u1f00" <= ch <= "\u1fff" for ch in text)
+
+
+def greek_folder_name(number: int, label: str, sub: str = "") -> str:
+    """greek_folder_name(8, "ΚΑΤΗΧΗΣΗ — B-ROLL", "a") -> "08a ΚΑΤΗΧΗΣΗ - B-ROLL". New events are named so."""
+    text = unicodedata.normalize("NFC", label).replace("—", "-").replace("–", "-")
+    return safe_folder_name(f"{number:02d}{sub} {text}")
+
+
 def folder_name(number: int, label: str, sub: str = "", style: dict | None = None) -> str:
     """folder_name(8, "ΚΑΤΗΧΗΣΗ — B-ROLL", "a") -> "08a KATIXISI - B-ROLL"."""
     return safe_folder_name(f"{number:02d}{sub} {to_greeklish(label, style)}")

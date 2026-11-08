@@ -276,7 +276,7 @@
   "feat.review": "Review first",
   "feat.review_text": "You check and correct everything — rename, merge, split, reorder, move clips — before a single file moves.",
   "feat.organize": "Organize with undo",
-  "feat.organize_text": "Numbered Greeklish folders on every drive copy, sidecars and proxies included, a shot index and contact sheets, and a journal that undoes it all.",
+  "feat.organize_text": "Numbered folders on every drive copy, sidecars and proxies included, a shot index and contact sheets, and a journal that undoes it all.",
   "feat.drives": "Drive monitoring",
   "feat.drives_text": "Free space on every drive, what each event takes, the space left after queued work, and warnings before you run out.",
   "feat.export": "Batch export",

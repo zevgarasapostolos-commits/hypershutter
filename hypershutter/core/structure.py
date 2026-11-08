@@ -2,7 +2,7 @@
 
 One text-only call over all clip descriptions on the corrected timeline, then deterministic
 validation: every clip exactly once, ΡΟΗ/B-ROLL rule, drone folder, conservative smoothing of
-isolated outliers, chronological numbering and Greeklish folder names. Without an API key or
+isolated outliers, chronological numbering and Greek folder names. Without an API key or
 internet the offline fallback segments the timeline by time gaps.
 """
 
@@ -15,7 +15,7 @@ from dataclasses import asdict, dataclass, field
 from datetime import datetime, timedelta
 
 from hypershutter.core import config, cost, credentials
-from hypershutter.core.greeklish import folder_name
+from hypershutter.core.greeklish import greek_folder_name
 from hypershutter.core.media import Clip, fmt_duration
 from hypershutter.core.project import Project
 
@@ -321,7 +321,6 @@ def finalize(p: Project, raw: dict, descriptions: dict[str, dict], preset: dict,
         if k:
             group = _ceremony_name(parts[k]) if parts[k]["kind"] in (FLOW, BROLL) else k
             first[group] = min(first.get(group, datetime.max), t)
-    style = preset["naming"]["greeklish_style"]
     sep = preset["naming"]["separator"]
     groups = sorted((g for g in first if not (g in parts and parts[g]["kind"] == UNUSABLE)), key=lambda g: first[g])
     cats: list[Category] = []
@@ -330,17 +329,17 @@ def finalize(p: Project, raw: dict, descriptions: dict[str, dict], preset: dict,
             for kind, sub, suffix in ((FLOW, "", preset["naming"]["flow_suffix"]), (BROLL, "a", preset["naming"]["broll_suffix"])):
                 k = by_ceremony[g][kind]
                 label = f"{g}{sep}{suffix}"
-                cats.append(Category(k, n, sub, label, folder_name(n, label, sub, style),
+                cats.append(Category(k, n, sub, label, greek_folder_name(n, label, sub),
                                      parts[k].get("description_el", ""), kind,
                                      parent=by_ceremony[g][FLOW] if kind == BROLL else ""))
         else:
             x = parts[g]
-            cats.append(Category(g, n, "", x["label_el"], folder_name(n, x["label_el"], "", style),
+            cats.append(Category(g, n, "", x["label_el"], greek_folder_name(n, x["label_el"]),
                                  x.get("description_el", ""), x["kind"]))
     for k, x in parts.items():
         if x["kind"] == UNUSABLE and any(v == k for v in assign.values()):
             u = preset["naming"]["unusable"]
-            cats.append(Category(k, u["number"], "", u["label"], folder_name(u["number"], u["label"], "", style),
+            cats.append(Category(k, u["number"], "", u["label"], greek_folder_name(u["number"], u["label"]),
                                  x.get("description_el", ""), UNUSABLE))
     for cat in cats:
         cat.clips = [c.id for c in clips if assign.get(c.id) == cat.key]
@@ -349,7 +348,7 @@ def finalize(p: Project, raw: dict, descriptions: dict[str, dict], preset: dict,
     for cat in cats:                     # a B-ROLL without its ΡΟΗ is not an "a" part (06, not 06a)
         if cat.sub and cat.parent not in present:
             cat.sub, cat.parent = "", ""
-            cat.folder = folder_name(cat.number, cat.label_el, "", style)
+            cat.folder = greek_folder_name(cat.number, cat.label_el)
     review = [c.id for c in clips if conf.get(c.id, 0) < REVIEW_BELOW]
     return Structure(cats, {c: assign[c] for c in order if c in assign}, conf, review, raw.get("notes", ""), source)
 

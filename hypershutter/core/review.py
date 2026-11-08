@@ -13,7 +13,7 @@ import uuid
 from pathlib import Path
 
 from hypershutter.core import config, store
-from hypershutter.core.greeklish import folder_name
+from hypershutter.core.greeklish import folder_name, greek_folder_name, has_greek
 from hypershutter.core.project import Project
 from hypershutter.core.structure import BROLL, FLOW, NORMAL, UNUSABLE, Category, Structure, ordered_clips
 
@@ -73,6 +73,8 @@ def _groups(st: Structure) -> list[list[Category]]:
 def renumber(st: Structure, preset: dict) -> None:
     naming = preset["naming"]
     style = naming["greeklish_style"]
+    # an event named before folders became Greek may already be organized on disk: its names stay
+    latin = not any(has_greek(c.folder) for c in st.categories) and any(has_greek(c.label_el) for c in st.categories)
     st.categories = [c for c in st.categories if c.kind != UNUSABLE] + [c for c in st.categories if c.kind == UNUSABLE]
     n = 0
     for group in _groups(st):
@@ -84,7 +86,7 @@ def renumber(st: Structure, preset: dict) -> None:
             for k, c in enumerate(group):
                 c.number, c.sub = n, (_letter(naming["sub_letter"], k) if k else "")
         for c in group:
-            c.folder = folder_name(c.number, c.label_el, c.sub, style)
+            c.folder = folder_name(c.number, c.label_el, c.sub, style) if latin else greek_folder_name(c.number, c.label_el, c.sub)
 
 
 def refresh(p: Project, st: Structure, preset: dict) -> None:

@@ -50,12 +50,12 @@ def test_finalize_numbers_names_and_fixes():
     p = _project(SPEC)
     st = structure.finalize(p, _raw(p), BLACK, config.load_preset("baptism"))
     folders = {c: st.folder_of(c) for c in p.clips}
-    assert folders["C1"] == folders["C3"] == folders["C2"] == "01 STOLISMOS & CANDY BAR"   # outlier smoothed
+    assert folders["C1"] == folders["C3"] == folders["C2"] == "01 ΣΤΟΛΙΣΜΟΣ & CANDY BAR"   # outlier smoothed
     assert folders["D1"] == "02 DRONE"                                                     # drone numbered at its time
-    assert folders["C4"] == "03 PORTRETA OIKOGENEIAS (PRIN)"
-    assert folders["C6"] == "04 KATIXISI - ROI"
-    assert folders["C8"] == folders["B1"] == "04a KATIXISI - B-ROLL"                        # short clip out of ΡΟΗ
-    assert folders["C9"] == "99 AXRISTA"
+    assert folders["C4"] == "03 ΠΟΡΤΡΕΤΑ ΟΙΚΟΓΕΝΕΙΑΣ (ΠΡΙΝ)"
+    assert folders["C6"] == "04 ΚΑΤΗΧΗΣΗ - ΡΟΗ"
+    assert folders["C8"] == folders["B1"] == "04a ΚΑΤΗΧΗΣΗ - B-ROLL"                        # short clip out of ΡΟΗ
+    assert folders["C9"] == "99 ΑΧΡΗΣΤΑ"
     assert sorted(st.assignment) == sorted(p.clips)                                         # every clip once
 
 
@@ -66,7 +66,7 @@ def test_unusable_only_without_picture():
     assert st.folder_of("C9") == st.folder_of("C8") and not any(c.number == 99 for c in st.categories)
     assert "C9" in st.needs_review
     floor = {"C9": {"quality_issues": ["floor_or_ground"], "usable": False, "people": []}}
-    assert structure.finalize(p, _raw(p), floor, config.load_preset("baptism")).folder_of("C9") == "99 AXRISTA"
+    assert structure.finalize(p, _raw(p), floor, config.load_preset("baptism")).folder_of("C9") == "99 ΑΧΡΗΣΤΑ"
 
 
 def test_offline_segments_by_time_gaps():
@@ -108,7 +108,7 @@ def test_broll_without_its_flow_has_no_letter():
         if a["part"] == "p3":
             a["part"] = "p4"                                   # nothing left in the ΡΟΗ
     st = structure.finalize(p, raw, BLACK, config.load_preset("baptism"))
-    assert st.folder_of("C6") == "04 KATIXISI - B-ROLL"
+    assert st.folder_of("C6") == "04 ΚΑΤΗΧΗΣΗ - B-ROLL"
 
 
 def test_metrics_single_group_does_not_divide_by_zero():

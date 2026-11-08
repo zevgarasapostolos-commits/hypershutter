@@ -73,9 +73,9 @@ There is **no fixed category list**. Each event gets its own structure, built fr
 
 `presets/wedding.yaml` (primary), `baptism.yaml`, `event.yaml` are **hints only** — typical moments, naming style, rules. Typical wedding moments as hints: groom getting ready, bride getting ready, details (rings, dress, shoes), church exterior/interior, arrivals, bride's arrival/entrance, ceremony (ΡΟΗ / B-ROLL), exit & wishes, couple shoot, reception venue, couple's entrance, first dance, dancing, cake, drone. In Review the user can rename, merge, split and reorder categories.
 
-### 4.3 Naming: Greeklish
+### 4.3 Naming: Greek
 
-Folder names and the index file name are **Greeklish** (Latin characters), regardless of UI language — e.g. `01 ETOIMASIA GAMPROU`, `05 MYSTIRIO - ROI`, `05a MYSTIRIO - B-ROLL`, `99 AXRISTA`. Take the exact style from the workflow docs; if they don't specify, ask the user once and store it in the preset.
+Category folder names are in **Greek**, regardless of UI language (the user's decision, 8 Nov 2026) — e.g. `01 ΕΤΟΙΜΑΣΙΑ ΓΑΜΠΡΟΥ`, `05 ΜΥΣΤΗΡΙΟ - ΡΟΗ`, `05a ΜΥΣΤΗΡΙΟ - B-ROLL`, `99 ΑΧΡΗΣΤΑ`. The index file name stays Greeklish (`00 EVRETIRIO PLANON.md`). Events already named in Greeklish keep their folders.
 
 ### 4.4 Example of a finished project (example only — not a template)
 
@@ -88,7 +88,7 @@ Folder names and the index file name are **Greeklish** (Latin characters), regar
 cam apos/ cam dim/ drone/   original source folders, empty after the move
 ```
 
-The root also contains `music/`, Premiere XMLs and preview MP4s from editing — out of scope, ignore them (also in evaluation). Folder names here are still Greek; new output uses Greeklish (4.3). 267 clips: camera A `C41xx–C43xx` (main, `cam apos`), camera B `C65xx` (`cam dim`), drone `DJI_YYYYMMDDhhmmss_NNNN_D.MP4`. Camera file names are kept. The index notes camera A's clock was wrong (+14:00), confirmed by camera-B clips showing the same moment inside camera-A clips.
+The root also contains `music/`, Premiere XMLs and preview MP4s from editing — out of scope, ignore them (also in evaluation). Folder names here are Greek, like new output (4.3). 267 clips: camera A `C41xx–C43xx` (main, `cam apos`), camera B `C65xx` (`cam dim`), drone `DJI_YYYYMMDDhhmmss_NNNN_D.MP4`. Camera file names are kept. The index notes camera A's clock was wrong (+14:00), confirmed by camera-B clips showing the same moment inside camera-A clips.
 
 Source folder names vary (`cam apos`, `apos`, `dim`, `drone`, `sound` …): detect cameras by file pattern and metadata, not only folder name. Sidecars may be missing.
 
@@ -160,7 +160,7 @@ Keep the existing repo layout. New modules for the missing thesis parts: `core/i
 
 ### 6.6 Automatic sorting (two passes)
 - **Pass 1 — describe every clip** (parallel): contact sheets + corrected time + duration + camera + audio features → JSON: what/who/where, shot type (wide / close-up / detail / portrait / aerial), continuous take vs cutaway, notable moments, audio context, quality issues, optional star suggestion.
-- **Pass 2 — build the event structure** (one call over the whole event): all clip descriptions on the corrected timeline, the preset hints and the workflow rules → the event's moments in chronological order with Greeklish folder names and numbers, ΡΟΗ / B-ROLL splits where they apply, drone folder, `99 AXRISTA` if needed, a Greek one-line description per moment, and the assignment of every clip with a confidence.
+- **Pass 2 — build the event structure** (one call over the whole event): all clip descriptions on the corrected timeline, the preset hints and the workflow rules → the event's moments in chronological order with Greek folder names and numbers, ΡΟΗ / B-ROLL splits where they apply, drone folder, `99 AXRISTA` if needed, a Greek one-line description per moment, and the assignment of every clip with a confidence.
 - **Smoothing / validation**: fix isolated outliers that contradict their time neighbors; every clip assigned once; numbering follows the timeline. Low confidence → "Needs review".
 - **Offline fallback**: time-gap + audio segmentation with generic names when there is no internet or API key.
 
@@ -205,7 +205,7 @@ Keep the existing repo layout. New modules for the missing thesis parts: `core/i
 - Standard macOS menu bar and keyboard shortcuts.
 
 ### Languages
-- **English (default) and Greek**, switchable in Settings and onboarding. Every UI string goes through `locales/en.json` / `locales/el.json`. Folder names on disk are always Greeklish (4.3).
+- **English (default) and Greek**, switchable in Settings and onboarding. Every UI string goes through `locales/en.json` / `locales/el.json`. Folder names on disk are always Greek (4.3).
 
 ## 8. Design (polish AFTER the core works — tokens in place from day one)
 
