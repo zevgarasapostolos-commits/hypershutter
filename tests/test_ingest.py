@@ -123,6 +123,41 @@ def test_resume_skips_verified_files_and_finishes_the_rest(tmp_path):
     assert r.copied == 1 and r.skipped == 5 and r.safe_to_format
 
 
+def test_a_resume_verifies_whole_copies_instead_of_writing_them_again(tmp_path, monkeypatch):
+    card_dir = sony_card(tmp_path / "card", n=4)
+    before = snapshot(card_dir)
+    card = cards.read_card(card_dir)
+    dests = [tmp_path / "driveA", tmp_path / "driveB"]
+    ingest.ingest(card, "E", "A", dests, proxy="none")
+    for d in dests:                                     # as if it had stopped during the copy, before any verify
+        m = Manifest(d / "E")
+        for e in list(m.entries.values()):
+            m.set(e.rel, e.size, e.xxh64, "copied", e.source)
+        del m.entries["A/C0001.MP4"]                    # copied after the last manifest save
+        m.save()
+    gone = dests[1] / "E" / "A" / "C0002.MP4"           # never reached this drive
+    gone_size = gone.stat().st_size
+    gone.unlink()
+    damaged = dests[0] / "E" / "A" / "C0003.MP4"        # whole, but with one bad bit
+    data = bytearray(damaged.read_bytes())
+    data[100] ^= 1
+    damaged.write_bytes(data)
+
+    # the space check counts only what must still be written
+    monkeypatch.setattr(ingest, "MARGIN_BYTES", 0)
+    with monkeypatch.context() as mp:
+        mp.setattr(ingest, "_free", lambda p: gone_size * 2)
+        assert not ingest.check(card, ingest.plan(card, "A"), dests, "E", "none")["problems"]
+
+    r = ingest.ingest(card, "E", "A", dests, proxy="none")
+    assert r.safe_to_format and not r.failed
+    written = {Path(d["root"]).parent.name: d["written"] for d in r.dests}
+    assert written == {"driveA": len(data), "driveB": gone_size}    # only the missing and the damaged file
+    aside = [p.name for d in dests for p in (d / "E" / "A").glob(".*hs-old*")]
+    assert len(aside) == 1 and "C0003" in aside[0]      # the bad copy is kept aside, the good ones are untouched
+    assert snapshot(card_dir) == before
+
+
 def test_a_second_card_with_the_same_names_never_overwrites(tmp_path):
     dests = [tmp_path / "driveA"]
     first = cards.read_card(sony_card(tmp_path / "card1"))

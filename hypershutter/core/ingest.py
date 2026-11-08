@@ -113,6 +113,16 @@ def hash_file(path: Path, nocache: bool = True) -> str:
     return h.hexdigest()
 
 
+def _resumable(root: Path, m: Manifest, job: Job) -> bool:
+    """A whole copy left by an interrupted session: it needs verifying, not writing again (which
+    would need the space twice, since an unverified copy is kept aside and never deleted)."""
+    e = m.get(job.rel)
+    if e is not None and e.status != COPIED:
+        return False
+    f = Path(root) / job.rel
+    return f.exists() and f.stat().st_size == job.size
+
+
 def _inside(a: Path, b: Path) -> bool:
     try:
         a.resolve().relative_to(b.resolve())
@@ -169,7 +179,7 @@ def check(card: Card, jobs: list[Job], dests: list[Path], project: str, proxy: s
             problems.append({"code": "not_writable", "path": str(d)})
             continue
         m = Manifest(d / project)
-        missing = sum(j.size for j in jobs if not m.verified(j.rel, j.size))
+        missing = sum(j.size for j in jobs if not m.verified(j.rel, j.size) and not _resumable(d / project, m, j))
         if k == 0:
             missing += proxy_bytes
         key = _volume_key(d)
@@ -326,15 +336,20 @@ def ingest(card: Card, project: str, label: str, dests: list[Path], proxy: str =
         if need:
             todo.append((j, need))
             for s in need:
-                s.to_write += j.size
+                if not _resumable(s.root, s.manifest, j):
+                    s.to_write += j.size
         else:
             j.xxh64 = states[0].manifest.get(j.rel).xxh64
     skipped = len(jobs) - len(todo)
     for k, (j, need) in enumerate(todo, start=1):
         emit("copy", k - 1, len(todo), j.rel)
-        targets = [(s, s.root / j.rel) for s in need]
+        write = [s for s in need if not _resumable(s.root, s.manifest, j)]
+        known = next((e.xxh64 for s in need if (e := s.manifest.get(j.rel)) and e.status == COPIED), None)
         tc = time.time()
-        j.xxh64 = _copy(j, targets, on_bytes, _corrupt)
+        if write:
+            j.xxh64 = _copy(j, [(s, s.root / j.rel) for s in write], on_bytes, _corrupt)
+        else:                                            # every copy is whole: the card's hash is all that is needed
+            j.xxh64 = known or hash_file(j.src)
         for s in need:
             s.copy_seconds += time.time() - tc
             if not any(f.startswith(f"{j.rel}:") for f in s.failed):

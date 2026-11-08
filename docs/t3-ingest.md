@@ -60,7 +60,8 @@ modification time.
   - Records every file with its size, xxHash64 and status (`copied` → `verified`), and where it
     is now (`now`, after organizing).
   - Makes ingest resumable: verified files are skipped, files copied but not verified are only
-    verified.
+    verified, and the space check counts only what must still be written. A whole file the
+    manifest had not yet recorded is compared with the card the same way.
   - Re-inserting a card after the event was organized copies nothing.
 - **`<event>/<label>/<label>_<session>.mhl`** — an ASC MHL v1.1 hash list (`xxhash64be`), readable
   by Silverstack, ShotPut Pro, Hedge and `mhl verify`.
