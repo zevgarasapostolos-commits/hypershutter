@@ -794,6 +794,7 @@
     (b) =>
       (b.onclick = () => {
         HS.setLang(b.dataset.lang);
+        call("save_settings", { changes: { language: b.dataset.lang } });
         render();
       })
   );
@@ -802,6 +803,8 @@
     await HS.loadStrings();
     HS.setLang(HS.lang);
     S.info = await call("info");
+    // the app's port changes on every launch and browser storage is per port: the saved setting decides
+    if (S.info.language && S.info.language !== HS.lang) HS.setLang(S.info.language);
     $("#version").textContent = "v" + S.info.version;
     S.recent = await call("recent");
     if (!S.info.onboarded && HS.screens.onboarding) return go("onboarding");
