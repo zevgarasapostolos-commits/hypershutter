@@ -21,7 +21,7 @@ one that matters in daily use: how much of the proposal the videographer had to 
 | Cost | $11.43 (estimated beforehand: $10.12) |
 
 **Clocks.** The second camera was placed 2 min 19 s from the main one from the shared sound. The two
-recorders were placed the same way, one of them with a clock wrong by 806 hours. The drone has no
+recorders were placed the same way, one of them with file times 806 hours off. The drone has no
 sound, so its clock could not be corrected. Most of its clips are stamped 22:00 to 04:12, against
 17:13 to 23:40 for the main camera, and 9 of the 63 carry dates from 2023 and 2025. All 63 still went
 to the drone folder, because the sorting recognizes the device; only the folder's place in the
