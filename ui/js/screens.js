@@ -117,7 +117,7 @@
     },
     render() {
       const S = U().S;
-      if (!X.project) X.project = S.project ? S.project.name : "";
+      if (!X.project) X.project = suggestedEvent();
       const running = X.ingest && X.ingest.progress && !X.ingest.report && !X.ingest.error;
       const cardsHtml = X.cards.length
         ? `<ul class="card-list">${X.cards
@@ -154,6 +154,12 @@
         };
     },
   };
+
+  function suggestedEvent() {
+    const open = U().S.project;
+    const onCard = open && [...(X.cards || []), X.card].some((c) => c && open.root.startsWith(c.path + "/"));
+    return open && !onCard ? open.name : "";       // a folder opened on the card itself is not an event
+  }
 
   async function chooseCard(c) {
     X.card = c;

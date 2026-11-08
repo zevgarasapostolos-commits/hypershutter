@@ -14,9 +14,9 @@ baptisms and other events work through presets.
 > Status: all five parts of the thesis work, in the CLI and in the app (HyperShutter.app,
 > Apple silicon): verified multi-drive ingest, background proxies, sorting from time + camera +
 > image + sound, review with apply / undo on every drive copy, drive monitoring and batch
-> export, plus the Accuracy Lab and the ablation study. Waiting for the real logo and icon
-> (a placeholder is in assets/branding/). The earlier editing prototype (B-roll, Premiere XML)
-> lives on the `edit-prep` branch and is out of the thesis scope.
+> export, plus the Accuracy Lab and the ablation study. Tested end to end on a real memory card
+> ([docs/real-event-076.md](docs/real-event-076.md)). The earlier editing prototype (B-roll,
+> Premiere XML) lives on the `edit-prep` branch and is out of the thesis scope.
 
 ## Usage
 
@@ -46,8 +46,7 @@ hypershutter ablation "/Volumes/T7/<organized event>/" --type wedding   # accura
 checking that each copy matches the main one; `--signals time,camera,image,audio` chooses what the
 sorting may use, and `--offline` sorts without the API (time gaps + sound).
 
-The AI model defaults to Claude Opus 5.5 (`--model claude-sonnet-5-5` or `claude-haiku-5-5` are
-cheaper). A cost and time estimate is shown before any API call.
+The sorting always uses Claude Opus 5.5. A cost and time estimate is shown before any API call.
 
 Clock offsets are stated like the shot index states them: relative to what the camera clock
 wrote (e.g. "camera A is +14:00"). Each device gets an anchor/auto/manual/unresolved status.
@@ -69,8 +68,9 @@ scripts/build_app.sh            # dist/HyperShutter.app (PyInstaller, Apple sili
 ```
 
 FFmpeg is not bundled (`brew install ffmpeg`; the onboarding checks for it). The Whisper and
-CED-mini models are downloaded on first use. On the first launch macOS asks to let the app read
-its API key from the Keychain.
+CED-mini models are downloaded on first use. The API key is set once with `hypershutter key set`:
+it stays in the macOS Keychain and is read through Apple's `security` tool, so the app shows no
+password prompt. The interface deliberately mentions neither the AI nor the key.
 
 ## Install (development)
 
@@ -125,6 +125,7 @@ python3.13 -m venv .venv
 - [docs/t2-sound-and-ablation.md](docs/t2-sound-and-ablation.md): sound analysis and the ablation study (thesis results)
 - [docs/t3-ingest.md](docs/t3-ingest.md): verified multi-drive ingest, manifests, MHL, benchmark
 - [docs/t4-t6-proxies-drives-organize-export.md](docs/t4-t6-proxies-drives-organize-export.md): proxies, drives, multi-drive organize, export
+- [docs/real-event-076.md](docs/real-event-076.md): the first real card, from ingest to organized folders and export
 
 ## Accuracy
 
@@ -174,3 +175,21 @@ that is within the run-to-run spread. Frame density: one frame every 2 s (94.4%)
 | + second USB SSD | 49 MB/s | 148 MB/s | 46% |
 
 The slowest drive sets the pace (details in [docs/t3](docs/t3-ingest.md)).
+
+### First real card
+
+A real event that played no part in the tuning: 99.09 GB, 248 clips, copied to two drives.
+
+| Step | Result |
+|---|---|
+| Ingest | 497 of 497 files verified on both drives, 54 min |
+| Proxies | 248 clips, 41.6 GB (42.0 GB estimated) |
+| Sorting | 15 folders, 3 clips flagged; the reviewer changed nothing |
+| Organize | the same placement and the same checksums on both drives |
+
+See [docs/real-event-076.md](docs/real-event-076.md), including what this result does not prove.
+
+## Rights
+
+Undergraduate thesis, Department of Digital Systems, University of Thessaly. © Apostolos, all
+rights reserved. Third-party components: [THIRD_PARTY_LICENSES.md](THIRD_PARTY_LICENSES.md).

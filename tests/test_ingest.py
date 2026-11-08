@@ -201,6 +201,15 @@ def test_the_space_check_does_not_count_proxies_already_made(tmp_path, monkeypat
     assert ingest.check(card, jobs, [drive], "E", "prores_proxy")["proxies_gb"] == 1.0
 
 
+def test_a_placeholder_serial_does_not_identify_a_camera(tmp_path):
+    root = sony_card(tmp_path / "card")
+    assert cards.read_card(root).identity == "sony:ILCE-7SM3:123"
+    for xml in (root / "PRIVATE" / "M4ROOT" / "CLIP").glob("*.XML"):
+        xml.write_text(xml.read_text().replace('serialNo="123"', 'serialNo="4294967295"'))
+    card = cards.read_card(root)
+    assert card.camera == "Sony ILCE-7SM3" and card.identity == "sony:path:card"        # falls back to the card itself
+
+
 def test_a_second_card_with_the_same_names_never_overwrites(tmp_path):
     dests = [tmp_path / "driveA"]
     first = cards.read_card(sony_card(tmp_path / "card1"))

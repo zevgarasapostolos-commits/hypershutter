@@ -93,7 +93,10 @@ def _sony_camera(root: Path, files: list[CardFile]) -> tuple[str, str]:
             except OSError:
                 continue
             if m:
-                return f"{m.group(1)} {m.group(2)}", f"{m.group(2)}:{m.group(3) or ''}"
+                serial = m.group(3) or ""
+                if serial == "4294967295" or not serial.strip("0"):      # a placeholder: two bodies would look the same
+                    serial = ""
+                return f"{m.group(1)} {m.group(2)}", f"{m.group(2)}:{serial}" if serial else ""
     return "", ""
 
 

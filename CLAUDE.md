@@ -228,6 +228,8 @@ Look and feel: **professional, calm, luxurious**, like a premium native Mac app.
 
 ## 10. Status and remaining work
 
+**Decision (8 Nov 2026): the app is for the thesis only.** No public release work (signing, notarization, per-user keys, a download page).
+
 **Done before the scope change (7 Nov 2026) — keep it:** scan, clock sync from audio, checks; dense frames and contact sheets with cost estimate; two-pass sorting with offline fallback and evaluation (results in 4.6); app shell with Projects, Scan & Analyze, Review (move / rename / merge / split / reorder / stars), Accuracy Lab; apply with write-ahead journal, undo, verified backup, shot index and per-folder contact sheets.
 
 **Remaining, back to back** (Greek summary + commit + push after each):
