@@ -630,7 +630,7 @@ def main(argv: list[str] | None = None) -> int:
     sp.add_argument("--no-mirrors", action="store_true", help="undo only this copy")
     sp.set_defaults(func=cmd_undo)
 
-    sp = sub.add_parser("app", help="open the HyperShutter window (Home, Scan & Analyze, Review)")
+    sp = sub.add_parser("app", help="open the Wigroom window (Home, Scan & Analyze, Review)")
     sp.add_argument("--browser", action="store_true", help="no window: print a local URL for a browser (development)")
     sp.add_argument("--port", type=int, default=0)
     sp.add_argument("--debug", action="store_true", help="enable the web inspector")

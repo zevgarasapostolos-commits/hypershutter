@@ -1,4 +1,4 @@
-"""The app icon: build/HyperShutter.icns from assets/branding/AppIcon.iconset (the designed icon).
+"""The app icon: build/Wigroom.icns from assets/branding/AppIcon.iconset (the designed icon).
 Without it, a placeholder (slate "HS" in a gold ring) is drawn instead."""
 
 import subprocess
@@ -36,7 +36,7 @@ def draw(size: int = 1024) -> Image.Image:
 def main() -> None:
     given = ROOT / "assets" / "branding" / "AppIcon.iconset"            # the designed icon, all sizes
     if given.is_dir():
-        out = ROOT / "build" / "HyperShutter.icns"
+        out = ROOT / "build" / "Wigroom.icns"
         out.parent.mkdir(exist_ok=True)
         subprocess.run(["iconutil", "-c", "icns", str(given), "-o", str(out)], check=True)
         print(out)
@@ -47,13 +47,13 @@ def main() -> None:
     big = Image.open(src).convert("RGBA") if src.exists() else draw()
     if not src.exists():
         big.save(png)
-    iconset = ROOT / "build" / "HyperShutter.iconset"
+    iconset = ROOT / "build" / "Wigroom.iconset"
     iconset.mkdir(parents=True, exist_ok=True)
     for s in (16, 32, 128, 256, 512):
         big.resize((s, s), Image.LANCZOS).save(iconset / f"icon_{s}x{s}.png")
         big.resize((2 * s, 2 * s), Image.LANCZOS).save(iconset / f"icon_{s}x{s}@2x.png")
-    subprocess.run(["iconutil", "-c", "icns", str(iconset), "-o", str(ROOT / "build" / "HyperShutter.icns")], check=True)
-    print(ROOT / "build" / "HyperShutter.icns")
+    subprocess.run(["iconutil", "-c", "icns", str(iconset), "-o", str(ROOT / "build" / "Wigroom.icns")], check=True)
+    print(ROOT / "build" / "Wigroom.icns")
 
 
 if __name__ == "__main__":

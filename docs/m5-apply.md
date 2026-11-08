@@ -30,7 +30,7 @@
 6. **Refusals.**
    - The reference projects (073, the 25 July wedding) are refused by name.
    - So is any event whose clips mostly already sit in numbered folders and that has no
-     HyperShutter journal (organized by hand). `--force` overrides the second rule only.
+     Wigroom journal (organized by hand). `--force` overrides the second rule only.
 
 ## Undo
 
@@ -67,7 +67,7 @@ Files already backed up and verified are skipped.
 - backup verification;
 - re-apply after an edit, then undoing both runs in order.
 
-**Test copy** (`/Volumes/T7/HyperShutter-test/HS test 073-sample`): 30 small clips copied
+**Test copy** (`/Volumes/T7/Wigroom-test/HS test 073-sample`): 30 small clips copied
 read-only from the 073 baptism into a raw `cam apos / cam dim / drone` layout, plus 3 synthetic
 `.THM` sidecars.
 

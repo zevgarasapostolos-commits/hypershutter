@@ -103,8 +103,8 @@ def write_mhl(path: Path, root: Path, entries: list[Entry], started: datetime, f
                     f"    <lastmodificationdate>{mod}</lastmodificationdate>\n    <xxhash64be>{e.xxh64}</xxhash64be>\n"
                     f"    <hashdate>{escape(e.when[:19])}</hashdate>\n  </hash>")
     xml = ('<?xml version="1.0" encoding="UTF-8"?>\n<hashlist version="1.1">\n  <creatorinfo>\n'
-           f"    <name>HyperShutter</name>\n    <username>{escape(os.environ.get('USER', ''))}</username>\n"
-           f"    <hostname>{escape(platform.node())}</hostname>\n    <tool>HyperShutter ingest</tool>\n"
+           f"    <name>Wigroom</name>\n    <username>{escape(os.environ.get('USER', ''))}</username>\n"
+           f"    <hostname>{escape(platform.node())}</hostname>\n    <tool>Wigroom ingest</tool>\n"
            f"    <startdate>{started:%Y-%m-%dT%H:%M:%S}</startdate>\n    <finishdate>{finished:%Y-%m-%dT%H:%M:%S}</finishdate>\n"
            "  </creatorinfo>\n" + "\n".join(rows) + "\n</hashlist>\n")
     path.parent.mkdir(parents=True, exist_ok=True)

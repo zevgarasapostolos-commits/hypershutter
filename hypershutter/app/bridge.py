@@ -595,8 +595,8 @@ class Bridge:
         s = settings.load()
         if kind == "mail":
             from urllib.parse import quote
-            body = quote(f"HyperShutter {__version__}\nmacOS\n\nWhat happened:\n")
-            url = f"mailto:{s['support_email']}?subject={quote('HyperShutter support')}&body={body}"
+            body = quote(f"Wigroom {__version__}\nmacOS\n\nWhat happened:\n")
+            url = f"mailto:{s['support_email']}?subject={quote('Wigroom support')}&body={body}"
         elif kind == "issues":
             url = s["issues_url"]
         else:
@@ -609,7 +609,7 @@ class Bridge:
         import json
         import platform
         import zipfile
-        out = Path.home() / "Desktop" / f"HyperShutter diagnostics {time.strftime('%Y-%m-%d %H%M')}.zip"
+        out = Path.home() / "Desktop" / f"Wigroom diagnostics {time.strftime('%Y-%m-%d %H%M')}.zip"
         s = settings.load()
         with zipfile.ZipFile(out, "w", zipfile.ZIP_DEFLATED) as z:
             z.writestr("about.json", json.dumps({"version": __version__, "macos": platform.mac_ver()[0],

@@ -1,9 +1,9 @@
-# HyperShutter
+# Wigroom
 
 **Ingest, archiving and automatic sorting of wedding videography footage** (undergraduate thesis,
 Digital Systems, University of Thessaly).
 
-HyperShutter copies memory cards to several drives at once with checksum verification and creates
+Wigroom copies memory cards to several drives at once with checksum verification and creates
 proxies in the background. It sorts the footage automatically by moment of the wedding (groom and
 bride getting ready, ceremony, reception …) using capture time, image and audio analysis and the
 camera. The videographer reviews and corrects the sorting before the files are organized into
@@ -11,7 +11,7 @@ numbered folders, with an undo journal, a shot index and per-folder contact shee
 also monitors drive space and does batch exports with presets. Weddings are the main target;
 baptisms and other events work through presets.
 
-> Status: all five parts of the thesis work, in the CLI and in the app (HyperShutter.app,
+> Status: all five parts of the thesis work, in the CLI and in the app (Wigroom.app,
 > Apple silicon): verified multi-drive ingest, background proxies, sorting from time + camera +
 > image + sound, review with apply / undo on every drive copy, drive monitoring and batch
 > export, plus the Accuracy Lab and the ablation study. Tested end to end on a real memory card
@@ -64,7 +64,7 @@ wrote (e.g. "camera A is +14:00"). Each device gets an anchor/auto/manual/unreso
 ## Build the app
 
 ```bash
-scripts/build_app.sh            # dist/HyperShutter.app (PyInstaller, Apple silicon, ~510 MB)
+scripts/build_app.sh            # dist/Wigroom.app (PyInstaller, Apple silicon, ~510 MB)
 ```
 
 FFmpeg is not bundled (`brew install ffmpeg`; the onboarding checks for it). The Whisper and

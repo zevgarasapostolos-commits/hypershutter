@@ -39,7 +39,7 @@ sidebar.
     proxies;
   - the bytes the queued proxy and export jobs will still write there;
   - the free space left after that work.
-- **Never walks a drive.** Sizes come from what HyperShutter already knows.
+- **Never walks a drive.** Sizes come from what Wigroom already knows.
 - **Volumes listed once.** Volumes of the same APFS container are shown once.
 - **Status.** `ok` / `warn` / `critical`, from thresholds in Settings: warn under 50 GB or 10%,
   critical under 10 GB.

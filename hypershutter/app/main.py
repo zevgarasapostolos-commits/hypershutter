@@ -31,7 +31,7 @@ def run(browser: bool = False, port: int = 0, debug: bool = False) -> None:
     server.start()
 
     if browser:
-        print(f"HyperShutter is running at {server.url}  (Ctrl+C to stop)", flush=True)
+        print(f"Wigroom is running at {server.url}  (Ctrl+C to stop)", flush=True)
         try:
             while True:
                 time.sleep(3600)
@@ -77,7 +77,7 @@ def run(browser: bool = False, port: int = 0, debug: bool = False) -> None:
                          MenuAction(L["bug"], lambda: bridge.open_link("issues")), MenuSeparator(),
                          MenuAction(L["about"], nav("about"))]),
     ]
-    window = webview.create_window("HyperShutter", server.url, width=1380, height=880, min_size=(1040, 700),
+    window = webview.create_window("Wigroom", server.url, width=1380, height=880, min_size=(1040, 700),
                                    background_color="#FFFFFF", text_select=True)
     webview.start(bind, window, debug=debug, private_mode=False, menu=menu)
     server.stop()
@@ -85,9 +85,9 @@ def run(browser: bool = False, port: int = 0, debug: bool = False) -> None:
 
 MENU_EN = {"file": "File", "open": "Open Event Folder…", "ingest": "Ingest a Card…", "export": "Export…", "view": "View",
            "home": "Projects", "analyze": "Scan & Analyze", "review": "Review", "drives": "Drives", "lab": "Accuracy Lab",
-           "settings": "Settings…", "help": "Help", "help_item": "HyperShutter Help", "features": "What HyperShutter Can Do",
-           "bug": "Report a Bug…", "about": "About HyperShutter"}
+           "settings": "Settings…", "help": "Help", "help_item": "Wigroom Help", "features": "What Wigroom Can Do",
+           "bug": "Report a Bug…", "about": "About Wigroom"}
 MENU_EL = {"file": "Αρχείο", "open": "Άνοιγμα φακέλου event…", "ingest": "Εισαγωγή κάρτας…", "export": "Εξαγωγή…",
            "view": "Προβολή", "home": "Projects", "analyze": "Σάρωση & Ανάλυση", "review": "Έλεγχος", "drives": "Δίσκοι",
-           "lab": "Accuracy Lab", "settings": "Ρυθμίσεις…", "help": "Βοήθεια", "help_item": "Βοήθεια HyperShutter",
-           "features": "Τι κάνει το HyperShutter", "bug": "Αναφορά σφάλματος…", "about": "Σχετικά με το HyperShutter"}
+           "lab": "Accuracy Lab", "settings": "Ρυθμίσεις…", "help": "Βοήθεια", "help_item": "Βοήθεια Wigroom",
+           "features": "Τι κάνει το Wigroom", "bug": "Αναφορά σφάλματος…", "about": "Σχετικά με το Wigroom"}

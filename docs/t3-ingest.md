@@ -47,7 +47,7 @@ CLI: `hypershutter ingest`. App: the Ingest screen. Benchmark: `scripts/bench_in
    - The bad copy is set aside, never deleted.
    - If the card reads differently twice, the file is flagged.
 6. **Verdict.** The card is *safe to format* only when every file is verified on every drive.
-   HyperShutter never formats a card.
+   Wigroom never formats a card.
 
 Nothing is overwritten. A different file already at a place (e.g. a second card whose camera
 counter started again, another `C0001.MP4`) sends the card's file to `<label>/<card name>/` on

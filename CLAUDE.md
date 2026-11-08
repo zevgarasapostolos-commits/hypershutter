@@ -1,10 +1,12 @@
-# HyperShutter — Project Brief for Claude Code
+# Wigroom — Project Brief for Claude Code
+
+**Name.** The app is called **Wigroom** (renamed from HyperShutter on 8 Nov 2026). Only the visible name changed. Internal identifiers keep `hypershutter`: the Python package and CLI, the `.hypershutter/` folder on drives, `~/Library/Application Support/HyperShutter/`, the Keychain entry, the bundle identifier and the GitHub repository. Renaming those would orphan the undo journals, the caches and the stored key.
 
 This file is the single source of truth for the project. Read it fully at the start of every session.
 
 ## 0. Thesis — this defines the scope
 
-HyperShutter is the user's **undergraduate thesis**. Official title and description (the scope contract — build exactly this, nothing more):
+Wigroom is the user's **undergraduate thesis**. Official title and description (the scope contract — build exactly this, nothing more):
 
 > **Σύστημα εισαγωγής, αρχειοθέτησης και αυτόματης ταξινόμησης υλικού βιντεοσκόπησης γάμων**
 >
@@ -47,7 +49,7 @@ Owner and only user: **Apostolos**, professional wedding/event videographer and 
 - **Dry run first.** Nothing is organized until the user approves in the Review screen (or with an explicit `--apply` in the CLI).
 - **Undo must always work.** Every move/rename is written to a journal *before* it happens; undo restores exact original paths and names.
 - **Sidecars travel with their clip** (Sony `.XML`, DJI `.SRT` / `.LRF`, `.THM`, etc.); proxies follow their clip.
-- During development, test ingest with a **fake card** (a folder copied from a real card) and test move/undo on a **small test copy** (20–40 clips in a separate folder such as `~/HyperShutter-test/`), never on a real card or project.
+- During development, test ingest with a **fake card** (a folder copied from a real card) and test move/undo on a **small test copy** (20–40 clips in a separate folder such as `~/Wigroom-test/`), never on a real card or project.
 - Never send file names or folder paths to the AI model (in sorted projects folder names reveal the answer).
 - Never commit footage, frames, caches, client names, logs with personal data, `.env`, or API keys.
 
@@ -118,7 +120,7 @@ Source folder names vary (`cam apos`, `apos`, `dim`, `drone`, `sound` …): dete
 - **Anthropic Python SDK** for vision. Always **Claude Opus 5.5** (the user's choice; the app offers no other model).
 - **SQLite** for state and caches in `~/Library/Application Support/HyperShutter/`.
 - API key in the **macOS Keychain**, never in files or the repo. Read and written through Apple's `security` tool so that macOS never shows a password prompt. There is no key field in the app (`hypershutter key set` in Terminal).
-- Packaging into **HyperShutter.app** with py2app or PyInstaller; `.icns` icon via `iconutil`.
+- Packaging into **Wigroom.app** with py2app or PyInstaller; `.icns` icon via `iconutil`.
 - Everything also runs as a **CLI** (the existing commands plus `ingest`, `proxies`, `drives`, `export`) — the GUI calls the same core.
 
 Keep the existing repo layout. New modules for the missing thesis parts: `core/ingest.py`, `cards.py`, `manifest.py`, `proxies.py`, `drives.py`, `audio_tags.py`, `export.py`, `jobs.py`; presets in `presets/export/*.yaml` and `presets/proxy/*.yaml`; tests for hashing/verify (incl. simulated corruption), resume, multi-drive apply and export.
@@ -199,7 +201,7 @@ Keep the existing repo layout. New modules for the missing thesis parts: `core/i
 - **Background jobs** indicator (proxies, exports).
 - **Accuracy Lab**: evaluation runs and reports (6.7).
 - **Settings**: language, frame density, sorting preset hints and naming style, per-camera clock offsets, hash algorithm, proxy preset, export presets, warning thresholds.
-- **Features** — "What HyperShutter can do".
+- **Features** — "What Wigroom can do".
 - **Help & Support**: FAQ, "Contact support" (Mail with a pre-filled message to a support address from config — placeholder until given), "Report a bug" (GitHub Issues), "Export diagnostics" (logs and settings only — never footage or the API key).
 - **About**: version, credits, licenses.
 - Standard macOS menu bar and keyboard shortcuts.
@@ -242,5 +244,5 @@ Look and feel: **professional, calm, luxurious**, like a premium native Mac app.
 - **T6 — Batch export with presets** (6.10).
 - **T7 — App**: Ingest, Drives and Export screens, background-jobs indicator; finish onboarding, Settings, EN/EL, Features, Help & Support, About, menus.
 - **T8 — Design pass** (section 8), logo and icon.
-- **T9 — Ship**: package `HyperShutter.app`, README with architecture, evaluation and benchmarks, tag `v0.1.0`.
+- **T9 — Ship**: package `Wigroom.app`, README with architecture, evaluation and benchmarks, tag `v0.1.0`.
 - **Stretch (only if time remains)**: drone clips grouped by GPS location; AI star suggestions.

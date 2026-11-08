@@ -1,4 +1,4 @@
-/* HyperShutter design tokens. Gold is ~2.8:1 on white: hairlines, icons,
+/* Wigroom design tokens. Gold is ~2.8:1 on white: hairlines, icons,
    focus rings and large display only, never body text or button labels. */
 :root {
   --hs-white: #FFFFFF;

@@ -1,4 +1,4 @@
-/* HyperShutter screens beyond the core flow: Onboarding, Ingest, Export, Drives, Accuracy Lab,
+/* Wigroom screens beyond the core flow: Onboarding, Ingest, Export, Drives, Accuracy Lab,
    Settings, Features, Help & Support, About — plus the sidebar's background-jobs and drive status. */
 (function () {
   const HS = window.HS;
@@ -497,7 +497,7 @@
     canGo: () => true,
     render() {
       const v = (U().S.info || {}).version || "";
-      view().innerHTML = `${head(t("about.eyebrow"), "HyperShutter", t("about.version", { v }))}
+      view().innerHTML = `${head(t("about.eyebrow"), "Wigroom", t("about.version", { v }))}
         <section class="card"><img class="hero-mark" src="/ui/img/mark.svg" alt=""><p>${esc(t("about.text"))}</p><p class="muted">${esc(t("about.credits"))}</p></section>
         <section class="card"><h2 class="card-title">${esc(t("about.licenses"))}</h2><ul class="flag-list">${[
           "pywebview — BSD-3-Clause", "FFmpeg — LGPL/GPL (separate install)", "NumPy, SciPy — BSD-3-Clause",

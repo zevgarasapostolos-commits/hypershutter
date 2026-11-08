@@ -1,4 +1,4 @@
-/* HyperShutter core screens: Projects (home), Scan & Analyze, Review. The other screens
+/* Wigroom core screens: Projects (home), Scan & Analyze, Review. The other screens
    (Ingest, Export, Drives, Lab, Settings, …) live in screens.js and register in HS.screens. */
 (function () {
   const HS = window.HS;

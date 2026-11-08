@@ -1,4 +1,4 @@
-"""Entry point of the packaged HyperShutter.app (the CLI's `hypershutter app` does the same).
+"""Entry point of the packaged Wigroom.app (the CLI's `hypershutter app` does the same).
 `--browser [port]` serves the UI without a window (for checking a build)."""
 
 import sys

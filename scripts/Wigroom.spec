@@ -1,4 +1,4 @@
-# PyInstaller spec for HyperShutter.app (run through scripts/build_app.sh).
+# PyInstaller spec for Wigroom.app (run through scripts/build_app.sh).
 from pathlib import Path
 
 from PyInstaller.utils.hooks import collect_all, collect_submodules
@@ -21,19 +21,19 @@ a = Analysis([str(ROOT / "hypershutter" / "app" / "launch.py")], pathex=[str(ROO
              hiddenimports=hiddenimports, excludes=["tkinter", "pytest", "IPython", "matplotlib", "torch", "torchvision", "torchaudio",
                        "transformers", "tensorflow", "jax", "pandas", "sympy"], noarchive=False)
 pyz = PYZ(a.pure)
-exe = EXE(pyz, a.scripts, [], exclude_binaries=True, name="HyperShutter", console=False, argv_emulation=False,
+exe = EXE(pyz, a.scripts, [], exclude_binaries=True, name="Wigroom", console=False, argv_emulation=False,
           target_arch="arm64", upx=False)
-coll = COLLECT(exe, a.binaries, a.datas, name="HyperShutter", upx=False)
-app = BUNDLE(coll, name="HyperShutter.app", icon=str(ROOT / "build" / "HyperShutter.icns"),
+coll = COLLECT(exe, a.binaries, a.datas, name="Wigroom", upx=False)
+app = BUNDLE(coll, name="Wigroom.app", icon=str(ROOT / "build" / "Wigroom.icns"),
              bundle_identifier="app.hypershutter.HyperShutter", version="0.1.0",
              info_plist={
-                 "CFBundleName": "HyperShutter", "CFBundleDisplayName": "HyperShutter",
+                 "CFBundleName": "Wigroom", "CFBundleDisplayName": "Wigroom",
                  "CFBundleShortVersionString": "0.1.0", "CFBundleVersion": "0.1.0",
                  "LSMinimumSystemVersion": "13.0", "NSHighResolutionCapable": True,
                  "LSApplicationCategoryType": "public.app-category.video",
-                 "NSRemovableVolumesUsageDescription": "HyperShutter reads your memory cards and footage drives to copy, verify and organize the footage.",
-                 "NSDesktopFolderUsageDescription": "HyperShutter saves diagnostics you export to the Desktop.",
-                 "NSDocumentsFolderUsageDescription": "HyperShutter opens event folders you choose.",
-                 "NSDownloadsFolderUsageDescription": "HyperShutter opens event folders you choose.",
-                 "NSNetworkVolumesUsageDescription": "HyperShutter can copy cards to network drives you choose.",
+                 "NSRemovableVolumesUsageDescription": "Wigroom reads your memory cards and footage drives to copy, verify and organize the footage.",
+                 "NSDesktopFolderUsageDescription": "Wigroom saves diagnostics you export to the Desktop.",
+                 "NSDocumentsFolderUsageDescription": "Wigroom opens event folders you choose.",
+                 "NSDownloadsFolderUsageDescription": "Wigroom opens event folders you choose.",
+                 "NSNetworkVolumesUsageDescription": "Wigroom can copy cards to network drives you choose.",
              })
