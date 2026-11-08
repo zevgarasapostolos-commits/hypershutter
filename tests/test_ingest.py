@@ -158,6 +158,49 @@ def test_a_resume_verifies_whole_copies_instead_of_writing_them_again(tmp_path, 
     assert snapshot(card_dir) == before
 
 
+def test_the_proxy_estimate_follows_length_and_frame_rate(tmp_path, monkeypatch):
+    from hypershutter.core import proxies
+    files = [(tmp_path / f"C{i:04d}.MP4", 2_000_000_000) for i in range(40)]
+    seen = []
+
+    def length(path):
+        seen.append(path)
+        return 100.0, 50.0
+
+    monkeypatch.setattr(proxies, "_length", length)
+    assert proxies.size_ratio(files, "prores_proxy") == pytest.approx(100 * 77.5e6 / 8 / 2e9)      # 77.5 Mb/s at 50 fps
+    assert len(seen) <= proxies.SAMPLE                                                          # a sample, not every clip
+    assert proxies.size_ratio(files, "prores_proxy") == pytest.approx(100 * 77.5e6 / 8 / 2e9) and len(seen) <= proxies.SAMPLE
+    assert proxies.size_ratio(files, "h264") == pytest.approx(100 * 5.2e6 / 8 / 2e9)            # a fixed bitrate
+    assert proxies.size_ratio(files, "none") == 0.0
+    monkeypatch.setattr(proxies, "_length", lambda path: (0.0, 0.0))
+    other = [(tmp_path / f"D{i:04d}.MP4", 2_000_000_000) for i in range(3)]
+    assert proxies.size_ratio(other, "prores_proxy") == pytest.approx(0.42)                     # unreadable clips
+
+
+def test_the_space_check_does_not_count_proxies_already_made(tmp_path, monkeypatch):
+    from hypershutter.core import proxies
+    card = cards.read_card(sony_card(tmp_path / "card"))
+    jobs = ingest.plan(card, "A")
+    for j in jobs:
+        j.size = 2_000_000_000 if j.rel.endswith(".MP4") else 1000
+    monkeypatch.setattr(proxies, "size_ratio", lambda files, preset: 0.5)
+    drive = tmp_path / "driveA"
+    assert ingest.check(card, jobs, [drive], "E", "prores_proxy")["proxies_gb"] == 3.0
+    made = drive / "E" / "Proxies" / "A" / "C0001.mov"
+    made.parent.mkdir(parents=True)
+    made.write_bytes(b"x")
+    assert ingest.check(card, jobs, [drive], "E", "prores_proxy")["proxies_gb"] == 2.0
+    m = Manifest(drive / "E")                           # a clip that has since been organized into a folder
+    m.set("A/C0002.MP4", 2_000_000_000, "h", VERIFIED, "s")
+    m.relocate("A/C0002.MP4", "05 X/C0002.MP4")
+    m.save()
+    moved = drive / "E" / "Proxies" / "05 X" / "C0002.mov"
+    moved.parent.mkdir(parents=True)
+    moved.write_bytes(b"x")
+    assert ingest.check(card, jobs, [drive], "E", "prores_proxy")["proxies_gb"] == 1.0
+
+
 def test_a_second_card_with_the_same_names_never_overwrites(tmp_path):
     dests = [tmp_path / "driveA"]
     first = cards.read_card(sony_card(tmp_path / "card1"))

@@ -31,7 +31,7 @@ from typing import Callable
 
 import xxhash
 
-from hypershutter.core import cards, config, manifest
+from hypershutter.core import cards, config, manifest, proxies
 from hypershutter.core.cards import Card
 from hypershutter.core.manifest import COPIED, FAILED, VERIFIED, Manifest
 
@@ -40,7 +40,6 @@ QUEUE_DEPTH = 4
 PART = ".hspart"
 F_NOCACHE = getattr(fcntl, "F_NOCACHE", 48)
 MARGIN_BYTES = 1 << 30
-PROXY_RATIO = {"prores_proxy": 0.35, "h264": 0.06, "none": 0.0}   # proxy size / source size, rough
 
 Progress = Callable[[dict], None]
 
@@ -123,6 +122,11 @@ def _resumable(root: Path, m: Manifest, job: Job) -> bool:
     return f.exists() and f.stat().st_size == job.size
 
 
+def _proxy_missing(root: Path, m: Manifest, job: Job) -> bool:
+    e = m.get(job.rel)
+    return proxies.proxy_for(Path(root), (e.now or e.rel) if e else job.rel) is None
+
+
 def _inside(a: Path, b: Path) -> bool:
     try:
         a.resolve().relative_to(b.resolve())
@@ -165,7 +169,9 @@ def check(card: Card, jobs: list[Job], dests: list[Path], project: str, proxy: s
     free: dict[int, int] = {}
     where: dict[int, str] = {}
     card_bytes = sum(j.size for j in jobs)
-    proxy_bytes = int(card_bytes * PROXY_RATIO.get(proxy, 0.35))
+    videos = [j for j in jobs if proxies.makes_proxy(j.rel)]
+    ratio = proxies.size_ratio([(j.src, j.size) for j in videos], proxy)
+    proxy_bytes = int(ratio * sum(j.size for j in videos))
     drives = []
     for k, d in enumerate(dests):
         d = Path(d)
@@ -181,6 +187,7 @@ def check(card: Card, jobs: list[Job], dests: list[Path], project: str, proxy: s
         m = Manifest(d / project)
         missing = sum(j.size for j in jobs if not m.verified(j.rel, j.size) and not _resumable(d / project, m, j))
         if k == 0:
+            proxy_bytes = int(ratio * sum(j.size for j in videos if _proxy_missing(d / project, m, j)))
             missing += proxy_bytes
         key = _volume_key(d)
         need[key] = need.get(key, 0) + missing

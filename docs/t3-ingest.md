@@ -117,3 +117,25 @@ Per drive, verification read the SSDs at 560–625 MB/s and the hard disk at 57�
 - Background priority throttles the proxies hard (0.36× real time, decoding 10-bit 4:2:2 H.264 on
   the CPU). They are meant to finish while the next card copies, not to race the ingest.
 - The proxies came out at 36% of the source size, close to the 35% the pre-flight assumes.
+
+## First real card (8 Nov 2026)
+
+A Sony ILCE-7M5 card from a real event, copied to two drives: a USB SSD and a much slower external
+drive.
+
+| Measure | Result |
+|---|---|
+| Files | 497 (248 clips and their sidecars), 99.09 GB |
+| Verified | 497 of 497 on both drives, identical hashes, no retries |
+| Copy | 34.1 min, 48.5 MB/s to each drive at once |
+| Verify | 3.4 min on the SSD (492 MB/s), 19.9 min on the slower drive (83 MB/s) |
+| Whole ingest | 54.1 min |
+| Proxies (ProRes Proxy 1080p 50) | 248 clips, 41.57 GB, 42% of the source, median 73.5 Mb/s |
+
+The test changed two things:
+
+- **Resume.** Whole files left by an interrupted copy are now verified instead of being written
+  again, which would have needed the space twice.
+- **Proxy space.** A fixed 35% of the source size underestimated this card (34.7 GB against 41.6 GB).
+  A proxy's size follows the clip's length and frame rate, so the space check now reads the length
+  and frame rate of a sample of 16 clips and applies the preset's bitrate (on this card: 42.0 GB estimated, 41.6 GB real).

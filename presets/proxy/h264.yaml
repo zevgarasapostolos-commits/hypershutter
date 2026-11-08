@@ -9,4 +9,6 @@ video:
   fallback_args: ["-crf", "23", "-preset", "veryfast", "-pix_fmt", "yuv420p"]
 audio:
   args: ["-c:a", "aac", "-b:a", "192k"]
-size_ratio: 0.06
+estimate:
+  mbps: 5.2                         # 5 Mb/s video + 192 kb/s audio
+size_ratio: 0.06                    # proxy size / source size, only when a clip's length cannot be read

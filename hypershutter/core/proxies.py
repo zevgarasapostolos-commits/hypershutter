@@ -17,6 +17,8 @@ import os
 import threading
 import subprocess
 import time
+from concurrent.futures import ThreadPoolExecutor
+from functools import lru_cache
 from pathlib import Path
 from typing import Callable
 
@@ -25,9 +27,11 @@ import yaml
 from hypershutter.core import config
 from hypershutter.core.jobs import Job, JobQueue
 from hypershutter.core.media import VIDEO_EXT
+from hypershutter.core.scan import probe_file
 
 PROXY_DIR = "Proxies"
 DEFAULT = "prores_proxy"
+SAMPLE = 16                          # clips read to estimate the proxies of a whole card
 INGESTING = threading.Event()        # set while a card copies: proxies then yield the disk and the CPU
 
 
@@ -47,6 +51,40 @@ def proxy_for(project: Path, rel: str) -> Path | None:
 
 def is_proxy(rel: str) -> bool:
     return Path(rel).parts[:1] == (PROXY_DIR,)
+
+
+def makes_proxy(rel: str) -> bool:
+    return Path(rel).suffix.lower() in VIDEO_EXT and not is_proxy(rel) and not Path(rel).name.upper().endswith(".LRF")
+
+
+def _length(path: str) -> tuple[float, float]:
+    """Seconds and frames per second of a clip; zeros when it cannot be read."""
+    info = probe_file(Path(path))
+    return float(info.get("duration") or 0.0), float(info.get("fps") or 0.0)
+
+
+@lru_cache(maxsize=16)
+def _sample_ratio(sample: tuple[tuple[str, int], ...], preset_name: str) -> float:
+    preset = presets().get(preset_name)
+    if not preset:
+        return 0.0
+    rate = preset.get("estimate", {})
+    with ThreadPoolExecutor(max_workers=4) as ex:
+        lengths = list(ex.map(_length, (path for path, _ in sample)))
+    proxy = source = 0.0
+    for (_, size), (seconds, fps) in zip(sample, lengths):
+        if seconds > 0 and fps > 0:
+            proxy += seconds * (rate.get("mbps") or rate.get("mbps_per_fps", 0.0) * fps) * 1e6 / 8
+            source += size
+    return proxy / source if proxy and source else float(preset.get("size_ratio", 0.42))
+
+
+def size_ratio(files: list[tuple[Path, int]], preset_name: str) -> float:
+    """Proxy size / source size for these video files. A proxy's size follows the clip's length and
+    frame rate, not the size of the camera file, so a sample of the clips is read to find the
+    ratio for this card. The result is remembered: the space check runs on every change in the form."""
+    step = max(1, len(files) // SAMPLE)
+    return _sample_ratio(tuple((str(p), size) for p, size in files[::step][:SAMPLE]), preset_name)
 
 
 def _duration(src: Path) -> float:
@@ -115,7 +153,7 @@ def enqueue(q: JobQueue, project: Path, rels: list[str], preset: str = DEFAULT) 
     """Queue proxies for these clips (video only, not proxies themselves, not ones already made)."""
     n = 0
     for rel in rels:
-        if Path(rel).suffix.lower() not in VIDEO_EXT or is_proxy(rel) or Path(rel).name.upper().endswith(".LRF"):
+        if not makes_proxy(rel):
             continue
         if proxy_for(project, rel):
             continue

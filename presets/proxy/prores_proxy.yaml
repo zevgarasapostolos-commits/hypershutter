@@ -9,4 +9,6 @@ video:
   fallback_args: ["-profile:v", "0"]
 audio:
   args: ["-c:a", "pcm_s16le"]
-size_ratio: 0.35                    # proxy size / 4K source size, for space checks
+estimate:
+  mbps_per_fps: 1.55                # measured on a real card: 76.7 Mb/s on average at 1080p 50, video + PCM audio
+size_ratio: 0.42                    # proxy size / source size, only when a clip's length cannot be read
